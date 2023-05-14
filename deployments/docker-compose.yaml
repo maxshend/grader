@@ -1,0 +1,39 @@
+version: '3'
+
+services:
+  web:
+    build:
+      context: ../
+      dockerfile: ./build/grader_web/Dockerfile.dev
+    container_name: grader_web
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      CGO_ENABLED: 0
+      DATABASE_URL: postgresql://postgres:password@postgres/grader?sslmode=disable
+      APP_ENV: development
+    networks:
+      - backend
+
+  postgres:
+    image: "postgres:alpine"
+    container_name: grader_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=grader
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - ../scripts/init_postgres.sql:/docker-entrypoint-initdb.d/db.sql
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+networks:
+  backend:
+
+volumes:
+  postgres_data:

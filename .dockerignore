@@ -1,0 +1,5 @@
+bin/
+build/
+deployments/
+.dockerignore
+.gitignore
