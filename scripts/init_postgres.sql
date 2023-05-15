@@ -6,6 +6,9 @@ CREATE TABLE users (
   CONSTRAINT users_username_unique UNIQUE (username)
 );
 
+INSERT INTO users (username, password)
+  VALUES ('foobar', 'password123');
+
 DROP TABLE IF EXISTS assignments;
 CREATE TABLE assignments (
   id SERIAL PRIMARY KEY,

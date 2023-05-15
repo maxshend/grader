@@ -10,6 +10,7 @@ import (
 	"github.com/maxshend/grader/pkg/assignments/delivery"
 	"github.com/maxshend/grader/pkg/assignments/repo"
 	"github.com/maxshend/grader/pkg/assignments/services"
+	amqp "github.com/rabbitmq/amqp091-go"
 
 	_ "github.com/lib/pq"
 )
@@ -21,7 +22,6 @@ func main() {
 	if len(dbURL) == 0 {
 		log.Fatal("DATABASE_URL should be set")
 	}
-
 	dbConn, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal(err)
@@ -31,8 +31,39 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	rabbitURL := os.Getenv("RABBITMQ_URL")
+	if len(rabbitURL) == 0 {
+		log.Fatal("RABBITMQ_URL should be set")
+	}
+	rabbitQueueName := os.Getenv("RABBITMQ_QUEUE")
+	if len(rabbitQueueName) == 0 {
+		log.Fatal("RABBITMQ_QUEUE should be set")
+	}
+	rabbitConn, err := amqp.Dial(rabbitURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rabbitConn.Close()
+	rabbitCh, err := rabbitConn.Channel()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rabbitCh.Close()
+	rabbitQueue, err := rabbitCh.QueueDeclare(
+		rabbitQueueName,
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	assignmentsRepo := repo.NewAssignmentsSQLRepo(dbConn)
-	assignmentsService := services.NewAssignmentsService(assignmentsRepo)
+	assignmentsService := services.NewAssignmentsService(assignmentsRepo, rabbitQueue)
 	assignmentsHandlers, err := delivery.NewAssignmentsHttpHandler(assignmentsService)
 	if err != nil {
 		log.Fatal(err)
