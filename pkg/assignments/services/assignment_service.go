@@ -17,5 +17,6 @@ func NewAssignmentsService(repo assignments.RepositoryInterface) AssignmentsServ
 }
 
 func (s *AssignmentsService) GetAll() ([]*assignments.Assignment, error) {
-	return s.Repo.GetAll(100, 9)
+	// TODO: Pagination handling
+	return s.Repo.GetAll(100, 0)
 }

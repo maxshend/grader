@@ -16,7 +16,7 @@ func NewAssignmentsSQLRepo(db *sql.DB) *AssignmentsSQLRepo {
 
 func (r *AssignmentsSQLRepo) GetAll(limit int, offset int) ([]*assignments.Assignment, error) {
 	rows, err := r.DB.Query(
-		"SELECT id, title, description, grader_url, container, part_id, files "+
+		"SELECT id, title, grader_url "+
 			"FROM assignments LIMIT $1 OFFSET $2",
 		limit, offset,
 	)
@@ -29,8 +29,7 @@ func (r *AssignmentsSQLRepo) GetAll(limit int, offset int) ([]*assignments.Assig
 	for rows.Next() {
 		assignment := &assignments.Assignment{}
 		err = rows.Scan(
-			&assignment.ID, &assignment.Description, &assignment.GraderURL,
-			&assignment.Container, &assignment.PartID, &assignment.Files,
+			&assignment.ID, &assignment.Title, &assignment.GraderURL,
 		)
 		if err != nil {
 			return nil, err

@@ -25,5 +25,5 @@ INSERT INTO assignments (title, description, grader_url, container, part_id, fil
     'http://127.0.0.1:8021/api/v1/grader',
     'golangcourse_final',
     'HW1_game',
-    {'main.go'}
+    '{"main.go"}'
   );

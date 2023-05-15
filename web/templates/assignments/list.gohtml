@@ -1,3 +1,21 @@
 {{define "yield"}}
-<h1>Assignments</h1>
+<table class="table">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Title</th>
+      <th scope="col">Grader URL</th>
+    </tr>
+  </thead>
+  <tbody>
+    <a class="btn btn-primary" href="/admin/assignments/new">Create</a>
+    {{range .Assignments}}
+      <tr>
+        <th scope="row">{{.ID}}</th>
+        <td>{{.Title}}</td>
+        <td>{{.GraderURL}}</td>
+      </tr>
+    {{end}}
+  </tbody>
+</table>
 {{end}}

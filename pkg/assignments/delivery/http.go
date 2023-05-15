@@ -3,6 +3,7 @@ package delivery
 import (
 	"net/http"
 
+	"github.com/maxshend/grader/pkg/assignments"
 	"github.com/maxshend/grader/pkg/assignments/services"
 	"github.com/maxshend/grader/pkg/utils"
 )
@@ -30,7 +31,13 @@ func NewAssignmentsHttpHandler(
 }
 
 func (h AssignmentsHttpHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	err := h.Views["GetAll"].RenderView(w, nil)
+	result, err := h.Service.GetAll()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = h.Views["GetAll"].RenderView(w, &struct{ Assignments []*assignments.Assignment }{result})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
