@@ -3,6 +3,7 @@ CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   username VARCHAR(255) NOT NULL,
   password VARCHAR NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT users_username_unique UNIQUE (username)
 );
 
@@ -18,6 +19,7 @@ CREATE TABLE assignments (
   container VARCHAR(255) NOT NULL,
   part_id VARCHAR(255) NOT NULL,
   files TEXT[] NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT assignments_title_unique UNIQUE (title)
 );
 
@@ -28,5 +30,23 @@ INSERT INTO assignments (title, description, grader_url, container, part_id, fil
     'http://127.0.0.1:8021/api/v1/grader',
     'golangcourse_final',
     'HW1_game',
-    '{"main.go"}'
+    '{"main.go", "lib.go"}'
   );
+
+DROP TABLE IF EXISTS submissions;
+CREATE TABLE submissions (
+  id SERIAL PRIMARY KEY,
+  user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  assignment_id BIGINT REFERENCES assignments(id) ON DELETE SET NULL,
+  status SMALLINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS submission_attachments;
+CREATE TABLE submission_attachments (
+  id SERIAL PRIMARY KEY,
+  url VARCHAR NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  submission_id BIGINT REFERENCES submissions(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

@@ -1,4 +1,9 @@
-version: '3'
+version: '3.4'
+
+x-common-variables: &common-variables
+  DATABASE_URL: postgresql://postgres:password@postgres/grader?sslmode=disable
+  RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+  RABBITMQ_QUEUE: assignments_handling
 
 services:
   web:
@@ -12,11 +17,29 @@ services:
     depends_on:
       - postgres
       - rabbitmq
+      - worker
     environment:
+      <<: *common-variables
       CGO_ENABLED: 0
-      DATABASE_URL: postgresql://postgres:password@postgres/grader?sslmode=disable
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
-      RABBITMQ_QUEUE: assignments_handling
+      APP_ENV: development
+    volumes:
+      - upload_data:/app/uploads
+    networks:
+      - backend
+
+  worker:
+    build:
+      context: ../
+      dockerfile: ./build/grader_worker/Dockerfile.dev
+    container_name: grader_worker
+    ports:
+      - 8081:8080
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+    environment:
+      <<: *common-variables
+      CGO_ENABLED: 0
       APP_ENV: development
     networks:
       - backend
@@ -48,3 +71,4 @@ networks:
 
 volumes:
   postgres_data:
+  upload_data:

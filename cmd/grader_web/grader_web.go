@@ -10,6 +10,8 @@ import (
 	"github.com/maxshend/grader/pkg/assignments/delivery"
 	"github.com/maxshend/grader/pkg/assignments/repo"
 	"github.com/maxshend/grader/pkg/assignments/services"
+	attachmentsRepo "github.com/maxshend/grader/pkg/attachments/repo"
+	submissionsRepo "github.com/maxshend/grader/pkg/submissions/repo"
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	_ "github.com/lib/pq"
@@ -50,7 +52,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer rabbitCh.Close()
-	rabbitQueue, err := rabbitCh.QueueDeclare(
+	_, err = rabbitCh.QueueDeclare(
 		rabbitQueueName,
 		true,  // durable
 		false, // delete when unused
@@ -63,17 +65,25 @@ func main() {
 	}
 
 	assignmentsRepo := repo.NewAssignmentsSQLRepo(dbConn)
-	assignmentsService := services.NewAssignmentsService(assignmentsRepo, rabbitQueue)
-	assignmentsHandlers, err := delivery.NewAssignmentsHttpHandler(assignmentsService)
+	submRepo := submissionsRepo.NewSubmissionsSQLRepo(dbConn)
+	attachRepo := attachmentsRepo.NewAttachmentsInmemRepo("./uploads")
+	assignmentsService := services.NewAssignmentsService(assignmentsRepo, attachRepo, submRepo, rabbitCh, rabbitQueueName)
+	assignmentsHandler, err := delivery.NewAssignmentsHttpHandler(assignmentsService)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	adminPages := router.PathPrefix("/admin").Subrouter()
-	adminPages.HandleFunc("/assignments", assignmentsHandlers.GetAll).Methods("GET")
+	adminPages.HandleFunc("/assignments", assignmentsHandler.GetAll).Methods("GET")
 
-	fs := http.FileServer(http.Dir("./web/static"))
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
+	router.HandleFunc("/assignments/{id}/submissions/new", assignmentsHandler.NewSubmission).Methods("GET")
+	router.HandleFunc("/assignments/{id}/submissions", assignmentsHandler.Submit).Methods("POST")
+
+	staticFs := http.FileServer(http.Dir("./web/static"))
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", staticFs))
+
+	uploadsFs := http.FileServer(http.Dir("./uploads"))
+	router.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", uploadsFs))
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

@@ -2,7 +2,9 @@ package repo
 
 import (
 	"database/sql"
+	"strconv"
 
+	"github.com/lib/pq"
 	"github.com/maxshend/grader/pkg/assignments"
 )
 
@@ -42,4 +44,31 @@ func (r *AssignmentsSQLRepo) GetAll(limit int, offset int) ([]*assignments.Assig
 	}
 
 	return result, nil
+}
+
+func (r *AssignmentsSQLRepo) GetByID(id string) (*assignments.Assignment, error) {
+	assignmentID, err := strconv.Atoi(id)
+	if err != nil {
+		return nil, err
+	}
+
+	assignment := &assignments.Assignment{}
+	err = r.DB.QueryRow(
+		"SELECT id, title, description, grader_url, container, part_id, files "+
+			"FROM assignments WHERE id = $1 LIMIT 1",
+		assignmentID,
+	).Scan(
+		&assignment.ID, &assignment.Title, &assignment.Description,
+		&assignment.GraderURL, &assignment.Container, &assignment.PartID, pq.Array(&assignment.Files),
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	return assignment, nil
 }

@@ -12,4 +12,5 @@ type Assignment struct {
 
 type RepositoryInterface interface {
 	GetAll(limit int, offset int) ([]*Assignment, error)
+	GetByID(id string) (*Assignment, error)
 }
