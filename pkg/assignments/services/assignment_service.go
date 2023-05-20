@@ -13,6 +13,7 @@ import (
 )
 
 type AssignmentsService struct {
+	WebhookFullURL  string
 	Repo            assignments.RepositoryInterface
 	AttachRepo      attachments.RepositoryInterface
 	SubmissionsRepo submissions.RepositoryInterface
@@ -27,6 +28,7 @@ type SubmissionFile struct {
 
 type SubmitAssignmentTask struct {
 	GraderURL    string                    `json:"grader_url"`
+	WebhookURL   string                    `json:"webhook_url"`
 	Container    string                    `json:"container"`
 	SubmissionID int64                     `json:"submission_id"`
 	PartID       string                    `json:"part_id"`
@@ -44,6 +46,7 @@ type AssignmentsServiceInterface interface {
 }
 
 func NewAssignmentsService(
+	webhookFullURL string,
 	repo assignments.RepositoryInterface,
 	attachRepo attachments.RepositoryInterface,
 	submissionsRepo submissions.RepositoryInterface,
@@ -51,6 +54,7 @@ func NewAssignmentsService(
 	queueName string,
 ) AssignmentsServiceInterface {
 	return &AssignmentsService{
+		WebhookFullURL:  webhookFullURL,
 		Repo:            repo,
 		AttachRepo:      attachRepo,
 		SubmissionsRepo: submissionsRepo,
@@ -108,14 +112,15 @@ func (s *AssignmentsService) Submit(assignment *assignments.Assignment, files []
 		return nil, err
 	}
 
+	submission.Attachments = submissionAttachments
 	task := &SubmitAssignmentTask{
 		GraderURL:    assignment.GraderURL,
 		Container:    assignment.Container,
-		PartID:       assignment.Container,
+		PartID:       assignment.PartID,
 		Files:        submission.Attachments,
 		SubmissionID: submission.ID,
+		WebhookURL:   fmt.Sprint(s.WebhookFullURL, submission.ID),
 	}
-	submission.Attachments = submissionAttachments
 	data, err := json.Marshal(task)
 	if err != nil {
 		return nil, err

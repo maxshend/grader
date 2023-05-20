@@ -15,15 +15,16 @@ import (
 
 const workersCount = 5
 
-type SubmitTask struct {
-	GraderURL    string        `json:"grader_url"`
-	Container    string        `json:"container"`
-	PartID       string        `json:"part_id"`
-	Files        []*SubmitFile `json:"files"`
-	SubmissionID int64         `json:"submission_id"`
+type SubmissionTask struct {
+	GraderURL    string            `json:"grader_url"`
+	WebhookURL   string            `json:"webhook_url"`
+	Container    string            `json:"container"`
+	PartID       string            `json:"part_id"`
+	Files        []*SubmissionFile `json:"files"`
+	SubmissionID int64             `json:"submission_id"`
 }
 
-type SubmitFile struct {
+type SubmissionFile struct {
 	URL  string `json:"url"`
 	Name string `json:"name"`
 }
@@ -47,6 +48,18 @@ func main() {
 		log.Fatal(err)
 	}
 	defer rabbitCh.Close()
+
+	_, err = rabbitCh.QueueDeclare(
+		rabbitQueueName,
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	err = rabbitCh.Qos(
 		1,     // prefetch count
@@ -89,7 +102,7 @@ func submitWorker(wg *sync.WaitGroup, tasks <-chan amqp.Delivery) {
 		func(taskItem amqp.Delivery) {
 			defer taskItem.Ack(false)
 
-			task := &SubmitTask{}
+			task := &SubmissionTask{}
 			err := json.Unmarshal(taskItem.Body, task)
 			if err != nil {
 				log.Printf("Can't unpack json: %q\n", err)
@@ -106,7 +119,6 @@ func submitWorker(wg *sync.WaitGroup, tasks <-chan amqp.Delivery) {
 				)
 				return
 			}
-			defer response.Body.Close()
 
 			responseBody, err := io.ReadAll(response.Body)
 			if err != nil {
@@ -114,9 +126,10 @@ func submitWorker(wg *sync.WaitGroup, tasks <-chan amqp.Delivery) {
 			}
 
 			log.Printf(
-				"Grader response (%s) for submission #%d:\n%s\n",
+				"Grader response (%s) for submission #%d status %d\n%s\n",
 				task.GraderURL,
 				task.SubmissionID,
+				response.StatusCode,
 				responseBody,
 			)
 		}(taskItem)

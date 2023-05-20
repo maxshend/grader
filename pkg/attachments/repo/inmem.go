@@ -11,11 +11,12 @@ import (
 
 type AttachmentsInmemRepo struct {
 	Path string
+	Host string
 	mx   sync.Mutex
 }
 
-func NewAttachmentsInmemRepo(path string) *AttachmentsInmemRepo {
-	return &AttachmentsInmemRepo{Path: path}
+func NewAttachmentsInmemRepo(path string, host string) *AttachmentsInmemRepo {
+	return &AttachmentsInmemRepo{Path: path, Host: host}
 }
 
 func (r *AttachmentsInmemRepo) Create(pathPrefix, name string, content io.Reader) (*attachments.Attachment, error) {
@@ -37,7 +38,7 @@ func (r *AttachmentsInmemRepo) Create(pathPrefix, name string, content io.Reader
 		return nil, err
 	}
 
-	attachment := &attachments.Attachment{Name: name, Content: content, URL: fullpath}
+	attachment := &attachments.Attachment{Name: name, Content: content, URL: r.Host + fullpath}
 
 	return attachment, nil
 }

@@ -22,6 +22,7 @@ services:
       <<: *common-variables
       CGO_ENABLED: 0
       APP_ENV: development
+      HOST: http://web:8080/
     volumes:
       - upload_data:/app/uploads
     networks:
@@ -39,6 +40,23 @@ services:
       - rabbitmq
     environment:
       <<: *common-variables
+      CGO_ENABLED: 0
+      APP_ENV: development
+    networks:
+      - backend
+
+  runner:
+    build:
+      context: ../
+      dockerfile: ./build/grader_runner/Dockerfile.dev
+    container_name: grader_runner
+    privileged: true
+    ports:
+      - 8021:8021
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
       CGO_ENABLED: 0
       APP_ENV: development
     networks:

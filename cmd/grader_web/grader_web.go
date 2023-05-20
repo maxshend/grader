@@ -4,22 +4,27 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/gorilla/mux"
-	"github.com/maxshend/grader/pkg/assignments/delivery"
+	assignmentsDelivery "github.com/maxshend/grader/pkg/assignments/delivery"
 	"github.com/maxshend/grader/pkg/assignments/repo"
-	"github.com/maxshend/grader/pkg/assignments/services"
+	assignmentsServices "github.com/maxshend/grader/pkg/assignments/services"
 	attachmentsRepo "github.com/maxshend/grader/pkg/attachments/repo"
+	submissionsDelivery "github.com/maxshend/grader/pkg/submissions/delivery"
 	submissionsRepo "github.com/maxshend/grader/pkg/submissions/repo"
+	submissionsServices "github.com/maxshend/grader/pkg/submissions/services"
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	_ "github.com/lib/pq"
 )
 
 func main() {
-	router := mux.NewRouter()
-
+	hostURL := os.Getenv("HOST")
+	if len(hostURL) == 0 {
+		log.Fatal("HOST should be set")
+	}
 	dbURL := os.Getenv("DATABASE_URL")
 	if len(dbURL) == 0 {
 		log.Fatal("DATABASE_URL should be set")
@@ -64,20 +69,31 @@ func main() {
 		log.Fatal(err)
 	}
 
-	assignmentsRepo := repo.NewAssignmentsSQLRepo(dbConn)
-	submRepo := submissionsRepo.NewSubmissionsSQLRepo(dbConn)
-	attachRepo := attachmentsRepo.NewAttachmentsInmemRepo("./uploads")
-	assignmentsService := services.NewAssignmentsService(assignmentsRepo, attachRepo, submRepo, rabbitCh, rabbitQueueName)
-	assignmentsHandler, err := delivery.NewAssignmentsHttpHandler(assignmentsService)
+	webhookURL := "/webhooks/submissions/"
+	webhookFullURL, err := url.JoinPath(hostURL, webhookURL)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	assignmentsRepo := repo.NewAssignmentsSQLRepo(dbConn)
+	submRepo := submissionsRepo.NewSubmissionsSQLRepo(dbConn)
+	attachRepo := attachmentsRepo.NewAttachmentsInmemRepo("./uploads", os.Getenv("HOST"))
+	assignmentsService := assignmentsServices.NewAssignmentsService(webhookFullURL, assignmentsRepo, attachRepo, submRepo, rabbitCh, rabbitQueueName)
+	assignmentsHandler, err := assignmentsDelivery.NewAssignmentsHttpHandler(assignmentsService)
+	if err != nil {
+		log.Fatal(err)
+	}
+	submissionsService := submissionsServices.NewSubmissionsService(submRepo)
+	submissionsHandler := submissionsDelivery.NewSubmissionsHttpHandler(submissionsService)
+	router := mux.NewRouter()
 
 	adminPages := router.PathPrefix("/admin").Subrouter()
 	adminPages.HandleFunc("/assignments", assignmentsHandler.GetAll).Methods("GET")
 
 	router.HandleFunc("/assignments/{id}/submissions/new", assignmentsHandler.NewSubmission).Methods("GET")
 	router.HandleFunc("/assignments/{id}/submissions", assignmentsHandler.Submit).Methods("POST")
+
+	router.HandleFunc(webhookURL+"{id}", submissionsHandler.Webhook).Methods("POST")
 
 	staticFs := http.FileServer(http.Dir("./web/static"))
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", staticFs))
