@@ -3,12 +3,22 @@ CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   username VARCHAR(255) NOT NULL,
   password VARCHAR NOT NULL,
+  role SMALLINT NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT users_username_unique UNIQUE (username)
 );
 
 INSERT INTO users (username, password)
   VALUES ('foobar', 'password123');
+
+DROP TABLE sessions;
+CREATE TABLE sessions (
+  id SERIAL PRIMARY KEY,
+  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  token VARCHAR NOT NULL
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT sessions_token_unique UNIQUE (token)
+);
 
 DROP TABLE IF EXISTS assignments;
 CREATE TABLE assignments (

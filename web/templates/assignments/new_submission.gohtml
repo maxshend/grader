@@ -2,11 +2,7 @@
 <h1>{{.Assignment.Title}}</h1>
 <p>{{.Assignment.Description}}</p>
 
-<ul class="list-group list-group-flush">
-  {{range $error := .Errors}}
-    <li class="list-group-item list-group-item-danger">{{$error}}</li>
-  {{end}}
-</ul>
+{{template "form_errors" .}}
 
 <form action={{print "/assignments/" .Assignment.ID "/submissions"}} method="post" enctype="multipart/form-data">
   {{range $file := .Assignment.Files}}

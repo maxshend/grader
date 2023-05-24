@@ -75,7 +75,7 @@ func (h AssignmentsHttpHandler) NewSubmission(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func (h AssignmentsHttpHandler) Submit(w http.ResponseWriter, r *http.Request) {
+func (h AssignmentsHttpHandler) CreateSubmission(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 5*1024*1024)
 	params := mux.Vars(r)
 

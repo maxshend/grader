@@ -8,13 +8,19 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
+
 	assignmentsDelivery "github.com/maxshend/grader/pkg/assignments/delivery"
 	"github.com/maxshend/grader/pkg/assignments/repo"
 	assignmentsServices "github.com/maxshend/grader/pkg/assignments/services"
 	attachmentsRepo "github.com/maxshend/grader/pkg/attachments/repo"
+
 	submissionsDelivery "github.com/maxshend/grader/pkg/submissions/delivery"
 	submissionsRepo "github.com/maxshend/grader/pkg/submissions/repo"
 	submissionsServices "github.com/maxshend/grader/pkg/submissions/services"
+
+	usersDelivery "github.com/maxshend/grader/pkg/users/delivery"
+	userRepo "github.com/maxshend/grader/pkg/users/repo"
+	usersServices "github.com/maxshend/grader/pkg/users/services"
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	_ "github.com/lib/pq"
@@ -78,20 +84,32 @@ func main() {
 	assignmentsRepo := repo.NewAssignmentsSQLRepo(dbConn)
 	submRepo := submissionsRepo.NewSubmissionsSQLRepo(dbConn)
 	attachRepo := attachmentsRepo.NewAttachmentsInmemRepo("./uploads", os.Getenv("HOST"))
+	userRepo := userRepo.NewUsersSQLRepo(dbConn)
+
 	assignmentsService := assignmentsServices.NewAssignmentsService(webhookFullURL, assignmentsRepo, attachRepo, submRepo, rabbitCh, rabbitQueueName)
+	submissionsService := submissionsServices.NewSubmissionsService(submRepo)
+	usersService := usersServices.NewUsersService(userRepo)
+
 	assignmentsHandler, err := assignmentsDelivery.NewAssignmentsHttpHandler(assignmentsService)
 	if err != nil {
 		log.Fatal(err)
 	}
-	submissionsService := submissionsServices.NewSubmissionsService(submRepo)
+	usersHandler, err := usersDelivery.NewUsersHttpHandler(usersService)
+	if err != nil {
+		log.Fatal(err)
+	}
 	submissionsHandler := submissionsDelivery.NewSubmissionsHttpHandler(submissionsService)
+
 	router := mux.NewRouter()
 
 	adminPages := router.PathPrefix("/admin").Subrouter()
 	adminPages.HandleFunc("/assignments", assignmentsHandler.GetAll).Methods("GET")
 
 	router.HandleFunc("/assignments/{id}/submissions/new", assignmentsHandler.NewSubmission).Methods("GET")
-	router.HandleFunc("/assignments/{id}/submissions", assignmentsHandler.Submit).Methods("POST")
+	router.HandleFunc("/assignments/{id}/submissions", assignmentsHandler.CreateSubmission).Methods("POST")
+
+	router.HandleFunc("/signup", usersHandler.New).Methods("GET")
+	router.HandleFunc("/users", usersHandler.Create).Methods("POST")
 
 	router.HandleFunc(webhookURL+"{id}", submissionsHandler.Webhook).Methods("POST")
 
