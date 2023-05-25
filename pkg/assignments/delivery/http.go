@@ -7,12 +7,14 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/maxshend/grader/pkg/assignments"
 	"github.com/maxshend/grader/pkg/assignments/services"
+	"github.com/maxshend/grader/pkg/sessions"
 	"github.com/maxshend/grader/pkg/utils"
 )
 
 type AssignmentsHttpHandler struct {
-	Service services.AssignmentsServiceInterface
-	Views   map[string]*utils.View
+	Service        services.AssignmentsServiceInterface
+	SessionManager sessions.HttpSessionManager
+	Views          map[string]*utils.View
 }
 
 type newSubmissionData struct {
@@ -22,6 +24,7 @@ type newSubmissionData struct {
 
 func NewAssignmentsHttpHandler(
 	service services.AssignmentsServiceInterface,
+	sessionManager sessions.HttpSessionManager,
 ) (*AssignmentsHttpHandler, error) {
 	views := make(map[string]*utils.View)
 	var err error
@@ -36,8 +39,9 @@ func NewAssignmentsHttpHandler(
 	}
 
 	return &AssignmentsHttpHandler{
-		Service: service,
-		Views:   views,
+		Service:        service,
+		Views:          views,
+		SessionManager: sessionManager,
 	}, nil
 }
 
@@ -51,7 +55,20 @@ func (h AssignmentsHttpHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	err = h.Views["GetAll"].RenderView(w, &struct{ Assignments []*assignments.Assignment }{result})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (h AssignmentsHttpHandler) PersonalAssignments(w http.ResponseWriter, r *http.Request) {
+	user := h.SessionManager.CurrentUser(r)
+	result, err := h.Service.GetByUserID(user.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	err = h.Views["GetAll"].RenderView(w, &struct{ Assignments []*assignments.Assignment }{result})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -71,7 +88,6 @@ func (h AssignmentsHttpHandler) NewSubmission(w http.ResponseWriter, r *http.Req
 	err = h.Views["NewSubmission"].RenderView(w, &newSubmissionData{Assignment: assignment})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
 	}
 }
 

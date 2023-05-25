@@ -72,3 +72,7 @@ func (r *AssignmentsSQLRepo) GetByID(id string) (*assignments.Assignment, error)
 
 	return assignment, nil
 }
+
+func (r *AssignmentsSQLRepo) GetByUserID(userID int64) ([]*assignments.Assignment, error) {
+	return nil, nil
+}

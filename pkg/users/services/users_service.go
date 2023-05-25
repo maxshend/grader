@@ -1,6 +1,9 @@
 package services
 
-import "github.com/maxshend/grader/pkg/users"
+import (
+	"github.com/maxshend/grader/pkg/users"
+	"golang.org/x/crypto/bcrypt"
+)
 
 type UsersService struct {
 	Repo users.RepositoryInterface
@@ -51,7 +54,12 @@ func (s *UsersService) Create(username, password, password_confirmation string) 
 		return
 	}
 
-	return s.Repo.Create(username, password, users.RegularUser)
+	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.Repo.Create(username, string(hash), users.RegularUser)
 }
 
 func (s *UsersService) GetByID(id int64) (*users.User, error) {

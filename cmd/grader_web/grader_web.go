@@ -13,14 +13,19 @@ import (
 	"github.com/maxshend/grader/pkg/assignments/repo"
 	assignmentsServices "github.com/maxshend/grader/pkg/assignments/services"
 	attachmentsRepo "github.com/maxshend/grader/pkg/attachments/repo"
+	"github.com/maxshend/grader/pkg/sessions"
 
 	submissionsDelivery "github.com/maxshend/grader/pkg/submissions/delivery"
 	submissionsRepo "github.com/maxshend/grader/pkg/submissions/repo"
 	submissionsServices "github.com/maxshend/grader/pkg/submissions/services"
 
 	usersDelivery "github.com/maxshend/grader/pkg/users/delivery"
-	userRepo "github.com/maxshend/grader/pkg/users/repo"
+	usersRepo "github.com/maxshend/grader/pkg/users/repo"
 	usersServices "github.com/maxshend/grader/pkg/users/services"
+
+	sessionsRepo "github.com/maxshend/grader/pkg/sessions/repo"
+	sessionsServices "github.com/maxshend/grader/pkg/sessions/services"
+
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	_ "github.com/lib/pq"
@@ -84,17 +89,20 @@ func main() {
 	assignmentsRepo := repo.NewAssignmentsSQLRepo(dbConn)
 	submRepo := submissionsRepo.NewSubmissionsSQLRepo(dbConn)
 	attachRepo := attachmentsRepo.NewAttachmentsInmemRepo("./uploads", os.Getenv("HOST"))
-	userRepo := userRepo.NewUsersSQLRepo(dbConn)
+	userRepo := usersRepo.NewUsersSQLRepo(dbConn)
+	sessionRepo := sessionsRepo.NewSessionsSQLRepo(dbConn)
 
 	assignmentsService := assignmentsServices.NewAssignmentsService(webhookFullURL, assignmentsRepo, attachRepo, submRepo, rabbitCh, rabbitQueueName)
 	submissionsService := submissionsServices.NewSubmissionsService(submRepo)
 	usersService := usersServices.NewUsersService(userRepo)
 
-	assignmentsHandler, err := assignmentsDelivery.NewAssignmentsHttpHandler(assignmentsService)
+	sessionManager := sessionsServices.NewHttpSession(sessionRepo)
+
+	assignmentsHandler, err := assignmentsDelivery.NewAssignmentsHttpHandler(assignmentsService, sessionManager)
 	if err != nil {
 		log.Fatal(err)
 	}
-	usersHandler, err := usersDelivery.NewUsersHttpHandler(usersService)
+	usersHandler, err := usersDelivery.NewUsersHttpHandler(usersService, sessionManager)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -110,6 +118,10 @@ func main() {
 
 	router.HandleFunc("/signup", usersHandler.New).Methods("GET")
 	router.HandleFunc("/users", usersHandler.Create).Methods("POST")
+
+	authPages := router.NewRoute().Subrouter()
+	authPages.HandleFunc("/assignments", assignmentsHandler.PersonalAssignments).Methods("GET")
+	authPages.Use(sessions.AuthMiddleware(sessionManager, userRepo))
 
 	router.HandleFunc(webhookURL+"{id}", submissionsHandler.Webhook).Methods("POST")
 

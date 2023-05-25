@@ -11,11 +11,11 @@ CREATE TABLE users (
 INSERT INTO users (username, password)
   VALUES ('foobar', 'password123');
 
-DROP TABLE sessions;
+DROP TABLE IF EXISTS sessions;
 CREATE TABLE sessions (
   id SERIAL PRIMARY KEY,
   user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
-  token VARCHAR NOT NULL
+  token VARCHAR NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT sessions_token_unique UNIQUE (token)
 );

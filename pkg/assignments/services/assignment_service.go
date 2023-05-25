@@ -42,6 +42,7 @@ const (
 type AssignmentsServiceInterface interface {
 	GetAll() ([]*assignments.Assignment, error)
 	GetByID(string) (*assignments.Assignment, error)
+	GetByUserID(int64) ([]*assignments.Assignment, error)
 	Submit(*assignments.Assignment, []*SubmissionFile) (*submissions.Submission, error)
 }
 
@@ -70,6 +71,10 @@ func (s *AssignmentsService) GetAll() ([]*assignments.Assignment, error) {
 
 func (s *AssignmentsService) GetByID(id string) (*assignments.Assignment, error) {
 	return s.Repo.GetByID(id)
+}
+
+func (s *AssignmentsService) GetByUserID(userID int64) ([]*assignments.Assignment, error) {
+	return s.Repo.GetByUserID(userID)
 }
 
 func (s *AssignmentsService) Submit(assignment *assignments.Assignment, files []*SubmissionFile) (*submissions.Submission, error) {

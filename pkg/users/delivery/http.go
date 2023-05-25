@@ -3,14 +3,16 @@ package delivery
 import (
 	"net/http"
 
+	sessions "github.com/maxshend/grader/pkg/sessions"
 	"github.com/maxshend/grader/pkg/users"
 	"github.com/maxshend/grader/pkg/users/services"
 	"github.com/maxshend/grader/pkg/utils"
 )
 
 type UsersHttpHandler struct {
-	Service services.UsersServiceInterface
-	Views   map[string]*utils.View
+	Service        services.UsersServiceInterface
+	SessionManager sessions.HttpSessionManager
+	Views          map[string]*utils.View
 }
 
 type signupData struct {
@@ -20,6 +22,7 @@ type signupData struct {
 
 func NewUsersHttpHandler(
 	service services.UsersServiceInterface,
+	sessionManager sessions.HttpSessionManager,
 ) (*UsersHttpHandler, error) {
 	views := make(map[string]*utils.View)
 	var err error
@@ -30,8 +33,9 @@ func NewUsersHttpHandler(
 	}
 
 	return &UsersHttpHandler{
-		Service: service,
-		Views:   views,
+		Service:        service,
+		Views:          views,
+		SessionManager: sessionManager,
 	}, nil
 }
 
@@ -60,6 +64,12 @@ func (h UsersHttpHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 
 		return
+	}
+
+	// TODO: Remove user if cannot create session
+	_, err = h.SessionManager.Create(w, user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
 	http.Redirect(w, r, "/assignments", http.StatusSeeOther)
