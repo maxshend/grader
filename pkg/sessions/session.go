@@ -51,7 +51,7 @@ func AuthMiddleware(sm HttpSessionManager, repo users.RepositoryInterface) mux.M
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			session, err := sm.Check(r)
 			if err != nil {
-				if err == http.ErrNoCookie {
+				if err == http.ErrNoCookie || err == ErrUnauthenticatedUser {
 					utils.RedirectUnauthenticated(w, r)
 					return
 				}

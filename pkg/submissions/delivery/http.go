@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/maxshend/grader/pkg/submissions/services"
@@ -26,6 +27,12 @@ func NewSubmissionsHttpHandler(service services.SubmissionsServiceInterface) *Su
 }
 
 func (h *SubmissionsHttpHandler) Webhook(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("Authorization")
+	if len(token) == 0 {
+		http.Error(w, utils.ErrInvalidAccessToken.Error(), http.StatusUnauthorized)
+		return
+	}
+
 	params := mux.Vars(r)
 	runnerResponse := &RunnerResponse{}
 	err := json.NewDecoder(r.Body).Decode(runnerResponse)
@@ -34,7 +41,26 @@ func (h *SubmissionsHttpHandler) Webhook(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	log.Printf("Runner Response for submission #%s: \n%+v\n", params["id"], runnerResponse)
+	log.Printf("Webhook: Submission #%s: \n%+v\n", params["id"], runnerResponse)
+
+	submissionID, err := strconv.Atoi(params["id"])
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+		return
+	}
+
+	err = h.Service.HandleWebhook(token, int64(submissionID), runnerResponse.Pass, runnerResponse.Text)
+	if err != nil {
+		if err == services.ErrSubmissionNotFound {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else if err == utils.ErrInvalidAccessToken {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+		} else {
+			utils.RenderInternalError(w, r, err)
+		}
+
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 }

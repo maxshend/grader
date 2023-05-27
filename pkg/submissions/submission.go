@@ -1,11 +1,13 @@
 package submissions
 
-import "github.com/maxshend/grader/pkg/attachments"
+import (
+	"github.com/maxshend/grader/pkg/attachments"
+)
 
 const (
 	InProgress int = iota
 	Success
-	Error
+	Fail
 )
 
 type Submission struct {
@@ -13,6 +15,7 @@ type Submission struct {
 	Status       int
 	AssignmentID int64
 	UserID       int64
+	Details      string
 	Attachments  []*Attachment
 }
 
@@ -26,4 +29,6 @@ type RepositoryInterface interface {
 	Create(userID int64, assignmentID int64) (*Submission, error)
 	CreateSubmissionAttachments(int64, []*attachments.Attachment) ([]*Attachment, error)
 	GetSubmissionAttachments(int64) ([]*Attachment, error)
+	GetByID(int64) (*Submission, error)
+	Update(*Submission) error
 }

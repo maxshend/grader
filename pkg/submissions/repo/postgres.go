@@ -2,6 +2,7 @@ package repo
 
 import (
 	"database/sql"
+	"log"
 
 	"github.com/lib/pq"
 	"github.com/maxshend/grader/pkg/attachments"
@@ -91,6 +92,44 @@ func (r *SubmissionsSQLRepo) insertMultipleAttachments(submissionID int64, attac
 	}
 
 	_, err = stm.Exec()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *SubmissionsSQLRepo) GetByID(id int64) (*submissions.Submission, error) {
+	submission := &submissions.Submission{}
+	detailsString := sql.NullString{}
+	err := r.DB.QueryRow(
+		"SELECT id, user_id, assignment_id, status, details FROM submissions WHERE id = $1 LIMIT 1",
+		id,
+	).Scan(
+		&submission.ID, &submission.UserID, &submission.AssignmentID,
+		&submission.Status, &detailsString,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+	if detailsString.Valid {
+		submission.Details = detailsString.String
+	}
+
+	return submission, nil
+}
+
+func (r *SubmissionsSQLRepo) Update(submission *submissions.Submission) error {
+	log.Printf("%+v\n", submission)
+
+	_, err := r.DB.Exec(
+		"UPDATE submissions SET status = $1, details = $2 WHERE id = $3",
+		submission.Status, submission.Details, submission.ID,
+	)
 	if err != nil {
 		return err
 	}

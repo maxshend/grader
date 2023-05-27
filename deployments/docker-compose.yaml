@@ -23,6 +23,7 @@ services:
       CGO_ENABLED: 0
       APP_ENV: development
       HOST: http://web:8080/
+      JWT_SECRET: foobar123
     volumes:
       - upload_data:/app/uploads
     networks:

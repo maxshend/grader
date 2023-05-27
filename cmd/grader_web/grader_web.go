@@ -33,6 +33,10 @@ import (
 )
 
 func main() {
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if len(jwtSecret) == 0 {
+		log.Fatal("JWT_SECRET should be set")
+	}
 	hostURL := os.Getenv("HOST")
 	if len(hostURL) == 0 {
 		log.Fatal("HOST should be set")
@@ -93,8 +97,16 @@ func main() {
 	userRepo := usersRepo.NewUsersSQLRepo(dbConn)
 	sessionRepo := sessionsRepo.NewSessionsSQLRepo(dbConn)
 
-	assignmentsService := assignmentsServices.NewAssignmentsService(webhookFullURL, assignmentsRepo, attachRepo, submRepo, rabbitCh, rabbitQueueName)
-	submissionsService := submissionsServices.NewSubmissionsService(submRepo)
+	assignmentsService := assignmentsServices.NewAssignmentsService(
+		webhookFullURL,
+		assignmentsRepo,
+		attachRepo,
+		submRepo,
+		rabbitCh,
+		rabbitQueueName,
+		jwtSecret,
+	)
+	submissionsService := submissionsServices.NewSubmissionsService(submRepo, jwtSecret)
 	usersService := usersServices.NewUsersService(userRepo)
 
 	sessionManager := sessionsServices.NewHttpSession(sessionRepo)
@@ -131,6 +143,7 @@ func main() {
 	authPages := router.NewRoute().Subrouter()
 
 	authPages.HandleFunc("/assignments", assignmentsHandler.PersonalAssignments).Methods("GET")
+	authPages.HandleFunc("/", assignmentsHandler.PersonalAssignments).Methods("GET")
 	authPages.HandleFunc("/assignments/{id}/submissions/new", assignmentsHandler.NewSubmission).Methods("GET")
 	authPages.HandleFunc("/assignments/{id}/submissions", assignmentsHandler.CreateSubmission).Methods("POST")
 

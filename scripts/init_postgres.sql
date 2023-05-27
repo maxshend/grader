@@ -9,9 +9,6 @@ CREATE TABLE users (
   CONSTRAINT users_username_unique UNIQUE (username)
 );
 
-INSERT INTO users (username, password)
-  VALUES ('foobar', 'password123');
-
 DROP TABLE IF EXISTS sessions;
 CREATE TABLE sessions (
   id SERIAL PRIMARY KEY,
@@ -50,6 +47,7 @@ CREATE TABLE submissions (
   user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
   assignment_id BIGINT REFERENCES assignments(id) ON DELETE SET NULL,
   status SMALLINT NOT NULL DEFAULT 0,
+  details VARCHAR,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

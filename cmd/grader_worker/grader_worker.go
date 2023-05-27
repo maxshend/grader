@@ -22,6 +22,7 @@ type SubmissionTask struct {
 	PartID       string            `json:"part_id"`
 	Files        []*SubmissionFile `json:"files"`
 	SubmissionID int64             `json:"submission_id"`
+	AccessToken  string            `json:"access_token"`
 }
 
 type SubmissionFile struct {

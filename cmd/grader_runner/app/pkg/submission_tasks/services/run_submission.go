@@ -122,7 +122,7 @@ func (s *SubmissionTaskService) RunSubmission(ctx context.Context, task *submiss
 		return err
 	}
 
-	httpResponse, err := sendResults(task.WebhookURL, containerResponse)
+	httpResponse, err := sendResults(task.WebhookURL, task.AccessToken, containerResponse)
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func (s *SubmissionTaskService) RunSubmission(ctx context.Context, task *submiss
 	return nil
 }
 
-func sendResults(graderURL string, containerResponse *ContainerResponse) (*http.Response, error) {
+func sendResults(graderURL string, authorization string, containerResponse *ContainerResponse) (*http.Response, error) {
 	requestBody, err := json.Marshal(containerResponse)
 	if err != nil {
 		return nil, err
@@ -145,6 +145,7 @@ func sendResults(graderURL string, containerResponse *ContainerResponse) (*http.
 		return nil, err
 	}
 	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("Authorization", authorization)
 
 	client := &http.Client{
 		Timeout: time.Minute * 1,

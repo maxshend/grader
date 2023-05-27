@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/maxshend/grader/pkg/assignments"
 	"github.com/maxshend/grader/pkg/attachments"
 	"github.com/maxshend/grader/pkg/submissions"
 	"github.com/maxshend/grader/pkg/users"
+	"github.com/maxshend/grader/pkg/utils"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -20,6 +22,7 @@ type AssignmentsService struct {
 	SubmissionsRepo submissions.RepositoryInterface
 	QueueCh         *amqp.Channel
 	QueueName       string
+	JwtSecret       string
 }
 
 type SubmissionFile struct {
@@ -29,6 +32,7 @@ type SubmissionFile struct {
 
 type SubmitAssignmentTask struct {
 	GraderURL    string                    `json:"grader_url"`
+	AccessToken  string                    `json:"access_token"`
 	WebhookURL   string                    `json:"webhook_url"`
 	Container    string                    `json:"container"`
 	SubmissionID int64                     `json:"submission_id"`
@@ -54,6 +58,7 @@ func NewAssignmentsService(
 	submissionsRepo submissions.RepositoryInterface,
 	queueCh *amqp.Channel,
 	queueName string,
+	jwtSecret string,
 ) AssignmentsServiceInterface {
 	return &AssignmentsService{
 		WebhookFullURL:  webhookFullURL,
@@ -62,6 +67,7 @@ func NewAssignmentsService(
 		SubmissionsRepo: submissionsRepo,
 		QueueCh:         queueCh,
 		QueueName:       queueName,
+		JwtSecret:       jwtSecret,
 	}
 }
 
@@ -115,6 +121,10 @@ func (s *AssignmentsService) Submit(user *users.User, assignment *assignments.As
 		return nil, err
 	}
 
+	token, err := utils.AccessToken(s.JwtSecret, strconv.FormatInt(submission.ID, 10))
+	if err != nil {
+		return nil, err
+	}
 	submission.Attachments = submissionAttachments
 	task := &SubmitAssignmentTask{
 		GraderURL:    assignment.GraderURL,
@@ -122,6 +132,7 @@ func (s *AssignmentsService) Submit(user *users.User, assignment *assignments.As
 		PartID:       assignment.PartID,
 		Files:        submission.Attachments,
 		SubmissionID: submission.ID,
+		AccessToken:  token,
 		WebhookURL:   fmt.Sprint(s.WebhookFullURL, submission.ID),
 	}
 	data, err := json.Marshal(task)

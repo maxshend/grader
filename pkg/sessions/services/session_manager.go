@@ -32,6 +32,9 @@ func (sm *HttpSession) Check(r *http.Request) (*sessions.Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	if session == nil {
+		return nil, sessions.ErrUnauthenticatedUser
+	}
 
 	return session, nil
 }
