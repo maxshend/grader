@@ -81,7 +81,7 @@ func (s *AssignmentsService) GetByID(id string) (*assignments.Assignment, error)
 }
 
 func (s *AssignmentsService) GetByUserID(userID int64) ([]*assignments.Assignment, error) {
-	return s.Repo.GetByUserID(userID)
+	return s.Repo.GetByUserID(userID, 100, 0)
 }
 
 func (s *AssignmentsService) Submit(user *users.User, assignment *assignments.Assignment, files []*SubmissionFile) (*submissions.Submission, error) {

@@ -1,12 +1,21 @@
 {{define "navigation"}}
-<nav class="navbar navbar-light bg-light">
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
   <div class="container-fluid">
-    <span class="navbar-brand mb-0 h1">Grader</span>
-    {{if isAuthenticated}}
-      <span class="fw-bold">{{currentUser.Username}}</span>
-      <form action="/logout" method="post" class="form-inline">
+    <a class="navbar-brand" href="/">Grader</a>
+
+    <div class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link" href="/assignments">My Assignments</a>
+        </li>
+      </ul>
+
+      {{if isAuthenticated}}
+      <form action="/logout" method="post" class="form-inline my-2 my-lg-0">
+        <span class="fw-bold mx-2">{{currentUser.Username}}</span>
         <button class="btn btn-outline-danger" type="submit">Logout</button>
       </form>
+    </div>
     {{end}}
   </div>
 </nav>

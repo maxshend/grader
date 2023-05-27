@@ -101,7 +101,7 @@ func (s *SubmissionTaskService) RunSubmission(ctx context.Context, task *submiss
 			containerOut, err := s.DockerClient.ContainerLogs(
 				ctx,
 				resp.ID,
-				types.ContainerLogsOptions{ShowStdout: true, ShowStderr: true},
+				types.ContainerLogsOptions{ShowStdout: true},
 			)
 			if err != nil {
 				return err

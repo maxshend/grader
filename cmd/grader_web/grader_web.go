@@ -111,7 +111,11 @@ func main() {
 
 	sessionManager := sessionsServices.NewHttpSession(sessionRepo)
 
-	assignmentsHandler, err := assignmentsDelivery.NewAssignmentsHttpHandler(assignmentsService, sessionManager)
+	assignmentsHandler, err := assignmentsDelivery.NewAssignmentsHttpHandler(
+		assignmentsService,
+		sessionManager,
+		submissionsService,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -146,6 +150,7 @@ func main() {
 	authPages.HandleFunc("/", assignmentsHandler.PersonalAssignments).Methods("GET")
 	authPages.HandleFunc("/assignments/{id}/submissions/new", assignmentsHandler.NewSubmission).Methods("GET")
 	authPages.HandleFunc("/assignments/{id}/submissions", assignmentsHandler.CreateSubmission).Methods("POST")
+	authPages.HandleFunc("/assignments/{id}", assignmentsHandler.ShowPersonal).Methods("GET")
 
 	authPages.HandleFunc("/logout", sessionsHandler.Destroy).Methods("POST")
 

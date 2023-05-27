@@ -2,6 +2,7 @@ package services
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/maxshend/grader/pkg/submissions"
 	"github.com/maxshend/grader/pkg/utils"
@@ -16,6 +17,7 @@ type SubmissionsServiceInterface interface {
 	HandleWebhook(token string, submissionID int64, pass bool, text string) error
 	GetByID(int64) (*submissions.Submission, error)
 	Update(*submissions.Submission) error
+	GetByUserAssignment(assignmentID, userID int64) ([]*submissions.Submission, error)
 }
 
 func NewSubmissionsService(repo submissions.RepositoryInterface, jwtSeret string) SubmissionsServiceInterface {
@@ -46,7 +48,8 @@ func (s *SubmissionsService) HandleWebhook(token string, submissionID int64, pas
 		newStatus = submissions.Fail
 	}
 	submission.Status = newStatus
-	submission.Details = text
+	// strings.Replace fixes: pq: invalid byte sequence for encoding "UTF8": 0x00
+	submission.Details = strings.Replace(text, "\u0000", "", -1)
 
 	err = s.Update(submission)
 	if err != nil {
@@ -62,4 +65,9 @@ func (s *SubmissionsService) GetByID(id int64) (*submissions.Submission, error) 
 
 func (s *SubmissionsService) Update(submission *submissions.Submission) error {
 	return s.Repo.Update(submission)
+}
+
+func (s *SubmissionsService) GetByUserAssignment(assignmentID, userID int64) ([]*submissions.Submission, error) {
+	// TODO: Pagination handling
+	return s.Repo.GetByUserAssignment(assignmentID, userID, 100, 0)
 }

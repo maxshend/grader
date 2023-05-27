@@ -19,7 +19,7 @@ func NewAssignmentsSQLRepo(db *sql.DB) *AssignmentsSQLRepo {
 func (r *AssignmentsSQLRepo) GetAll(limit int, offset int) ([]*assignments.Assignment, error) {
 	rows, err := r.DB.Query(
 		"SELECT id, title, grader_url "+
-			"FROM assignments LIMIT $1 OFFSET $2",
+			"FROM assignments ORDER BY id DESC LIMIT $1 OFFSET $2",
 		limit, offset,
 	)
 	if err != nil {
@@ -73,6 +73,34 @@ func (r *AssignmentsSQLRepo) GetByID(id string) (*assignments.Assignment, error)
 	return assignment, nil
 }
 
-func (r *AssignmentsSQLRepo) GetByUserID(userID int64) ([]*assignments.Assignment, error) {
-	return nil, nil
+func (r *AssignmentsSQLRepo) GetByUserID(userID int64, limit, offset int) ([]*assignments.Assignment, error) {
+	rows, err := r.DB.Query(
+		"SELECT assignments.id, assignments.title "+
+			"FROM assignments JOIN submissions ON assignments.id = submissions.assignment_id "+
+			"WHERE submissions.user_id = $1 GROUP BY assignments.id, assignments.title "+
+			"ORDER BY assignments.id DESC LIMIT $2 OFFSET $3",
+		userID, limit, offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := []*assignments.Assignment{}
+	for rows.Next() {
+		assignment := &assignments.Assignment{}
+		err = rows.Scan(
+			&assignment.ID, &assignment.Title,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, assignment)
+	}
+	if err = rows.Err(); err != nil {
+		return result, err
+	}
+
+	return result, nil
 }

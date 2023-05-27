@@ -2,13 +2,15 @@
 <table class="table">
   <thead>
     <tr>
+      <th scope="col">ID</th>
       <th scope="col">Title</th>
     </tr>
   </thead>
   <tbody>
     {{range .Assignments}}
       <tr>
-        <td>{{.Title}}</td>
+        <td><a href="/assignments/{{.ID}}">{{.ID}}</a></td>
+        <td><a href="/assignments/{{.ID}}">{{.Title}}</a></td>
       </tr>
     {{end}}
   </tbody>

@@ -1,0 +1,25 @@
+{{define "yield"}}
+<h1>{{.Assignment.Title}}</h1>
+<p>{{.Assignment.Description}}</p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th scope="col">ID</th>
+      <th scope="col">Status</th>
+      <th scope="col">Details</th>
+      <th scope="col">Submitted At</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Submissions}}
+      <tr>
+        <td>{{.ID}}</td>
+        <td>{{submissionStatus .Status}}</td>
+        <td>{{.Details}}</td>
+        <td>{{.CreatedAt}}</td>
+      </tr>
+    {{end}}
+  </tbody>
+</table>
+{{end}}

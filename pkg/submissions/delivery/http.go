@@ -41,7 +41,7 @@ func (h *SubmissionsHttpHandler) Webhook(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	log.Printf("Webhook: Submission #%s: \n%+v\n", params["id"], runnerResponse)
+	log.Printf("Webhook: Submission #%s: \n%+v\n", params["id"], runnerResponse.Text)
 
 	submissionID, err := strconv.Atoi(params["id"])
 	if err != nil {

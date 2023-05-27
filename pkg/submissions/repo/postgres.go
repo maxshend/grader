@@ -2,7 +2,6 @@ package repo
 
 import (
 	"database/sql"
-	"log"
 
 	"github.com/lib/pq"
 	"github.com/maxshend/grader/pkg/attachments"
@@ -124,8 +123,6 @@ func (r *SubmissionsSQLRepo) GetByID(id int64) (*submissions.Submission, error) 
 }
 
 func (r *SubmissionsSQLRepo) Update(submission *submissions.Submission) error {
-	log.Printf("%+v\n", submission)
-
 	_, err := r.DB.Exec(
 		"UPDATE submissions SET status = $1, details = $2 WHERE id = $3",
 		submission.Status, submission.Details, submission.ID,
@@ -135,4 +132,44 @@ func (r *SubmissionsSQLRepo) Update(submission *submissions.Submission) error {
 	}
 
 	return nil
+}
+
+func (r *SubmissionsSQLRepo) GetByUserAssignment(
+	assignmentID int64,
+	userID int64,
+	limit int,
+	offset int,
+) ([]*submissions.Submission, error) {
+	rows, err := r.DB.Query(
+		"SELECT id, status, details, created_at "+
+			"FROM submissions WHERE user_id = $1 AND assignment_id = $2 "+
+			"ORDER BY id DESC LIMIT $3 OFFSET $4",
+		userID, assignmentID, limit, offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := []*submissions.Submission{}
+	for rows.Next() {
+		detailsString := sql.NullString{}
+		submission := &submissions.Submission{UserID: userID, AssignmentID: assignmentID}
+		err = rows.Scan(
+			&submission.ID, &submission.Status, &detailsString, &submission.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if detailsString.Valid {
+			submission.Details = detailsString.String
+		}
+
+		result = append(result, submission)
+	}
+	if err = rows.Err(); err != nil {
+		return result, err
+	}
+
+	return result, nil
 }

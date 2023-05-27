@@ -8,13 +8,16 @@ import (
 	"github.com/maxshend/grader/pkg/assignments"
 	"github.com/maxshend/grader/pkg/assignments/services"
 	"github.com/maxshend/grader/pkg/sessions"
+	"github.com/maxshend/grader/pkg/submissions"
+	submissionsServices "github.com/maxshend/grader/pkg/submissions/services"
 	"github.com/maxshend/grader/pkg/utils"
 )
 
 type AssignmentsHttpHandler struct {
-	Service        services.AssignmentsServiceInterface
-	SessionManager sessions.HttpSessionManager
-	Views          map[string]*utils.View
+	Service            services.AssignmentsServiceInterface
+	SubmissionsService submissionsServices.SubmissionsServiceInterface
+	SessionManager     sessions.HttpSessionManager
+	Views              map[string]*utils.View
 }
 
 type newSubmissionData struct {
@@ -25,6 +28,7 @@ type newSubmissionData struct {
 func NewAssignmentsHttpHandler(
 	service services.AssignmentsServiceInterface,
 	sessionManager sessions.HttpSessionManager,
+	ubmissionsService submissionsServices.SubmissionsServiceInterface,
 ) (*AssignmentsHttpHandler, error) {
 	views := make(map[string]*utils.View)
 	var err error
@@ -33,7 +37,7 @@ func NewAssignmentsHttpHandler(
 	if err != nil {
 		return nil, err
 	}
-	views["GetPersonal"], err = utils.NewView("./web/templates/assignments/list.gohtml")
+	views["GetAllPersonal"], err = utils.NewView("./web/templates/assignments/list.gohtml")
 	if err != nil {
 		return nil, err
 	}
@@ -41,11 +45,16 @@ func NewAssignmentsHttpHandler(
 	if err != nil {
 		return nil, err
 	}
+	views["ShowPersonal"], err = utils.NewView("./web/templates/assignments/assignment.gohtml")
+	if err != nil {
+		return nil, err
+	}
 
 	return &AssignmentsHttpHandler{
-		Service:        service,
-		Views:          views,
-		SessionManager: sessionManager,
+		Service:            service,
+		Views:              views,
+		SessionManager:     sessionManager,
+		SubmissionsService: ubmissionsService,
 	}, nil
 }
 
@@ -83,7 +92,7 @@ func (h AssignmentsHttpHandler) PersonalAssignments(w http.ResponseWriter, r *ht
 		return
 	}
 
-	err = h.Views["GetPersonal"].RenderView(
+	err = h.Views["GetAllPersonal"].RenderView(
 		w,
 		&struct{ Assignments []*assignments.Assignment }{result},
 		currentUser,
@@ -173,4 +182,40 @@ func (h AssignmentsHttpHandler) CreateSubmission(w http.ResponseWriter, r *http.
 	}
 
 	http.Redirect(w, r, fmt.Sprintf("/assignments/%d", assignment.ID), http.StatusSeeOther)
+}
+
+func (h AssignmentsHttpHandler) ShowPersonal(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	params := mux.Vars(r)
+	assignment, err := h.Service.GetByID(params["id"])
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+		return
+	}
+	if assignment == nil {
+		http.NotFound(w, r)
+		return
+	}
+	submissionsList, err := h.SubmissionsService.GetByUserAssignment(assignment.ID, currentUser.ID)
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+		return
+	}
+
+	err = h.Views["ShowPersonal"].RenderView(
+		w,
+		&struct {
+			Assignment  *assignments.Assignment
+			Submissions []*submissions.Submission
+		}{assignment, submissionsList},
+		currentUser,
+	)
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+	}
 }

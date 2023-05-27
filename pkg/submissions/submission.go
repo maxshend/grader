@@ -1,6 +1,8 @@
 package submissions
 
 import (
+	"time"
+
 	"github.com/maxshend/grader/pkg/attachments"
 )
 
@@ -17,6 +19,7 @@ type Submission struct {
 	UserID       int64
 	Details      string
 	Attachments  []*Attachment
+	CreatedAt    time.Time
 }
 
 type Attachment struct {
@@ -31,4 +34,5 @@ type RepositoryInterface interface {
 	GetSubmissionAttachments(int64) ([]*Attachment, error)
 	GetByID(int64) (*Submission, error)
 	Update(*Submission) error
+	GetByUserAssignment(assignmentID int64, userID int64, limit int, offset int) ([]*Submission, error)
 }

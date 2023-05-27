@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/maxshend/grader/pkg/submissions"
 	"github.com/maxshend/grader/pkg/users"
 )
 
@@ -26,6 +27,18 @@ func NewView(files ...string) (*View, error) {
 		template.FuncMap{
 			"currentUser":     func() *users.User { return nil },
 			"isAuthenticated": func() bool { return false },
+			"submissionStatus": func(status int) string {
+				switch status {
+				case submissions.InProgress:
+					return "Waiting"
+				case submissions.Success:
+					return "Success"
+				case submissions.Fail:
+					return "Fail"
+				}
+
+				return "Unknown"
+			},
 		},
 	).ParseFiles(files...)
 	if err != nil {
