@@ -9,6 +9,7 @@ import (
 	"github.com/maxshend/grader/pkg/assignments"
 	"github.com/maxshend/grader/pkg/attachments"
 	"github.com/maxshend/grader/pkg/submissions"
+	"github.com/maxshend/grader/pkg/users"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -36,14 +37,14 @@ type SubmitAssignmentTask struct {
 }
 
 const (
-	ErrSubmissionFiles = "Required submission file not present or has a wrong name"
+	MsgSubmissionFilesError = "required submission file not present or has a wrong name"
 )
 
 type AssignmentsServiceInterface interface {
 	GetAll() ([]*assignments.Assignment, error)
 	GetByID(string) (*assignments.Assignment, error)
 	GetByUserID(int64) ([]*assignments.Assignment, error)
-	Submit(*assignments.Assignment, []*SubmissionFile) (*submissions.Submission, error)
+	Submit(*users.User, *assignments.Assignment, []*SubmissionFile) (*submissions.Submission, error)
 }
 
 func NewAssignmentsService(
@@ -77,7 +78,7 @@ func (s *AssignmentsService) GetByUserID(userID int64) ([]*assignments.Assignmen
 	return s.Repo.GetByUserID(userID)
 }
 
-func (s *AssignmentsService) Submit(assignment *assignments.Assignment, files []*SubmissionFile) (*submissions.Submission, error) {
+func (s *AssignmentsService) Submit(user *users.User, assignment *assignments.Assignment, files []*SubmissionFile) (*submissions.Submission, error) {
 	for _, file := range files {
 		for i, requiredFile := range assignment.Files {
 			if requiredFile == file.Name {
@@ -85,15 +86,12 @@ func (s *AssignmentsService) Submit(assignment *assignments.Assignment, files []
 			}
 
 			if i == len(assignment.Files)-1 {
-				return nil, &AssignmentValidationError{ErrSubmissionFiles}
+				return nil, &AssignmentValidationError{MsgSubmissionFilesError}
 			}
 		}
 	}
 
-	// TODO: Use real user ID
-	var userID int64 = 1
-
-	submission, err := s.SubmissionsRepo.Create(userID, assignment.ID)
+	submission, err := s.SubmissionsRepo.Create(user.ID, assignment.ID)
 	if err != nil {
 		return nil, err
 	}

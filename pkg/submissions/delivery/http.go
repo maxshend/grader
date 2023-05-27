@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/maxshend/grader/pkg/submissions/services"
+	"github.com/maxshend/grader/pkg/utils"
 )
 
 type SubmissionsHttpHandler struct {
@@ -29,7 +30,7 @@ func (h *SubmissionsHttpHandler) Webhook(w http.ResponseWriter, r *http.Request)
 	runnerResponse := &RunnerResponse{}
 	err := json.NewDecoder(r.Body).Decode(runnerResponse)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.RenderInternalError(w, r, err)
 		return
 	}
 

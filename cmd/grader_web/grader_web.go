@@ -23,6 +23,7 @@ import (
 	usersRepo "github.com/maxshend/grader/pkg/users/repo"
 	usersServices "github.com/maxshend/grader/pkg/users/services"
 
+	sessionsDelivery "github.com/maxshend/grader/pkg/sessions/delivery"
 	sessionsRepo "github.com/maxshend/grader/pkg/sessions/repo"
 	sessionsServices "github.com/maxshend/grader/pkg/sessions/services"
 
@@ -107,20 +108,34 @@ func main() {
 		log.Fatal(err)
 	}
 	submissionsHandler := submissionsDelivery.NewSubmissionsHttpHandler(submissionsService)
+	sessionsHandler, err := sessionsDelivery.NewSessionsHttpHandler(sessionManager, usersService)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	router := mux.NewRouter()
 
 	adminPages := router.PathPrefix("/admin").Subrouter()
 	adminPages.HandleFunc("/assignments", assignmentsHandler.GetAll).Methods("GET")
-
-	router.HandleFunc("/assignments/{id}/submissions/new", assignmentsHandler.NewSubmission).Methods("GET")
-	router.HandleFunc("/assignments/{id}/submissions", assignmentsHandler.CreateSubmission).Methods("POST")
+	adminPages.Use(
+		sessions.AuthMiddleware(sessionManager, userRepo),
+		sessions.PolicyMiddleware(sessionManager),
+	)
 
 	router.HandleFunc("/signup", usersHandler.New).Methods("GET")
 	router.HandleFunc("/users", usersHandler.Create).Methods("POST")
 
+	router.HandleFunc("/signin", sessionsHandler.New).Methods("GET")
+	router.HandleFunc("/sessions", sessionsHandler.Create).Methods("POST")
+
 	authPages := router.NewRoute().Subrouter()
+
 	authPages.HandleFunc("/assignments", assignmentsHandler.PersonalAssignments).Methods("GET")
+	authPages.HandleFunc("/assignments/{id}/submissions/new", assignmentsHandler.NewSubmission).Methods("GET")
+	authPages.HandleFunc("/assignments/{id}/submissions", assignmentsHandler.CreateSubmission).Methods("POST")
+
+	authPages.HandleFunc("/logout", sessionsHandler.Destroy).Methods("POST")
+
 	authPages.Use(sessions.AuthMiddleware(sessionManager, userRepo))
 
 	router.HandleFunc(webhookURL+"{id}", submissionsHandler.Webhook).Methods("POST")

@@ -55,11 +55,40 @@ func (sm *HttpSession) Create(w http.ResponseWriter, user *users.User) (*session
 	return session, nil
 }
 
-func (sm *HttpSession) CurrentUser(r *http.Request) *users.User {
+func (sm *HttpSession) CurrentUser(r *http.Request) (*users.User, error) {
 	user, ok := (r.Context().Value(sessions.CurrentUserKey)).(*users.User)
-	if ok {
-		return user
+	if !ok {
+		return nil, sessions.ErrUnauthenticatedUser
 	}
+
+	return user, nil
+}
+
+func (sm *HttpSession) CurrentSession(r *http.Request) (*sessions.Session, error) {
+	session, ok := (r.Context().Value(sessions.SessionKey)).(*sessions.Session)
+	if !ok {
+		return nil, sessions.ErrUnauthenticatedUser
+	}
+
+	return session, nil
+}
+
+func (sm *HttpSession) Destroy(w http.ResponseWriter, r *http.Request) error {
+	session, err := sm.CurrentSession(r)
+	if err != nil {
+		return err
+	}
+	err = sm.Repo.Destroy(session)
+	if err != nil {
+		return err
+	}
+
+	cookie := http.Cookie{
+		Name:    cookieTokenKey,
+		Expires: time.Now().AddDate(0, 0, -1),
+		Path:    "/",
+	}
+	http.SetCookie(w, &cookie)
 
 	return nil
 }

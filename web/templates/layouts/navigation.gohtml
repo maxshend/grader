@@ -1,0 +1,13 @@
+{{define "navigation"}}
+<nav class="navbar navbar-light bg-light">
+  <div class="container-fluid">
+    <span class="navbar-brand mb-0 h1">Grader</span>
+    {{if isAuthenticated}}
+      <span class="fw-bold">{{currentUser.Username}}</span>
+      <form action="/logout" method="post" class="form-inline">
+        <button class="btn btn-outline-danger" type="submit">Logout</button>
+      </form>
+    {{end}}
+  </div>
+</nav>
+{{end}}

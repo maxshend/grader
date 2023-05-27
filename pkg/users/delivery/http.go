@@ -40,9 +40,13 @@ func NewUsersHttpHandler(
 }
 
 func (h UsersHttpHandler) New(w http.ResponseWriter, r *http.Request) {
-	err := h.Views["Signup"].RenderView(w, &signupData{User: &users.User{}})
+	err := h.Views["Signup"].RenderView(
+		w,
+		&signupData{User: &users.User{}},
+		nil,
+	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.RenderInternalError(w, r, err)
 		return
 	}
 }
@@ -55,12 +59,16 @@ func (h UsersHttpHandler) Create(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		if _, ok := err.(*services.UserValidationError); ok {
-			err := h.Views["Signup"].RenderView(w, &signupData{User: user, Errors: []string{err.Error()}})
+			err := h.Views["Signup"].RenderView(
+				w,
+				&signupData{User: user, Errors: []string{err.Error()}},
+				nil,
+			)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				utils.RenderInternalError(w, r, err)
 			}
 		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			utils.RenderInternalError(w, r, err)
 		}
 
 		return
@@ -69,7 +77,7 @@ func (h UsersHttpHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// TODO: Remove user if cannot create session
 	_, err = h.SessionManager.Create(w, user)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.RenderInternalError(w, r, err)
 	}
 
 	http.Redirect(w, r, "/assignments", http.StatusSeeOther)

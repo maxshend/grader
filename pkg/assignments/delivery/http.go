@@ -29,7 +29,11 @@ func NewAssignmentsHttpHandler(
 	views := make(map[string]*utils.View)
 	var err error
 
-	views["GetAll"], err = utils.NewView("./web/templates/assignments/list.gohtml")
+	views["GetAll"], err = utils.NewView("./web/templates/assignments/admin/list.gohtml")
+	if err != nil {
+		return nil, err
+	}
+	views["GetPersonal"], err = utils.NewView("./web/templates/assignments/list.gohtml")
 	if err != nil {
 		return nil, err
 	}
@@ -46,38 +50,61 @@ func NewAssignmentsHttpHandler(
 }
 
 func (h AssignmentsHttpHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
 	result, err := h.Service.GetAll()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.RenderInternalError(w, r, err)
 		return
 	}
 
-	err = h.Views["GetAll"].RenderView(w, &struct{ Assignments []*assignments.Assignment }{result})
+	err = h.Views["GetAll"].RenderView(
+		w,
+		&struct{ Assignments []*assignments.Assignment }{result},
+		currentUser,
+	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.RenderInternalError(w, r, err)
 	}
 }
 
 func (h AssignmentsHttpHandler) PersonalAssignments(w http.ResponseWriter, r *http.Request) {
-	user := h.SessionManager.CurrentUser(r)
-	result, err := h.Service.GetByUserID(user.ID)
+	currentUser, err := h.SessionManager.CurrentUser(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	result, err := h.Service.GetByUserID(currentUser.ID)
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
 		return
 	}
 
-	err = h.Views["GetAll"].RenderView(w, &struct{ Assignments []*assignments.Assignment }{result})
+	err = h.Views["GetPersonal"].RenderView(
+		w,
+		&struct{ Assignments []*assignments.Assignment }{result},
+		currentUser,
+	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.RenderInternalError(w, r, err)
 	}
 }
 
 func (h AssignmentsHttpHandler) NewSubmission(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
 	params := mux.Vars(r)
 
 	assignment, err := h.Service.GetByID(params["id"])
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.RenderInternalError(w, r, err)
 		return
 	}
 	if assignment == nil {
@@ -85,19 +112,29 @@ func (h AssignmentsHttpHandler) NewSubmission(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = h.Views["NewSubmission"].RenderView(w, &newSubmissionData{Assignment: assignment})
+	err = h.Views["NewSubmission"].RenderView(
+		w,
+		&newSubmissionData{Assignment: assignment},
+		currentUser,
+	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.RenderInternalError(w, r, err)
 	}
 }
 
 func (h AssignmentsHttpHandler) CreateSubmission(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
 	r.Body = http.MaxBytesReader(w, r.Body, 5*1024*1024)
 	params := mux.Vars(r)
 
 	assignment, err := h.Service.GetByID(params["id"])
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.RenderInternalError(w, r, err)
 		return
 	}
 	if assignment == nil {
@@ -109,7 +146,7 @@ func (h AssignmentsHttpHandler) CreateSubmission(w http.ResponseWriter, r *http.
 	for _, filename := range assignment.Files {
 		uploadData, header, err := r.FormFile(filename)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			utils.RenderInternalError(w, r, err)
 			return
 		}
 		defer uploadData.Close()
@@ -117,18 +154,19 @@ func (h AssignmentsHttpHandler) CreateSubmission(w http.ResponseWriter, r *http.
 		files = append(files, &services.SubmissionFile{Content: uploadData, Name: header.Filename})
 	}
 
-	_, err = h.Service.Submit(assignment, files)
+	_, err = h.Service.Submit(currentUser, assignment, files)
 	if err != nil {
 		if _, ok := err.(*services.AssignmentValidationError); ok {
 			err = h.Views["NewSubmission"].RenderView(
 				w,
 				newSubmissionData{assignment, []string{err.Error()}},
+				currentUser,
 			)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				utils.RenderInternalError(w, r, err)
 			}
 		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			utils.RenderInternalError(w, r, err)
 		}
 
 		return

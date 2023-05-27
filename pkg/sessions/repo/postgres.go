@@ -40,3 +40,12 @@ func (sm *SessionsSQLRepo) Create(userID int64, token string) (*sessions.Session
 
 	return session, nil
 }
+
+func (sm *SessionsSQLRepo) Destroy(session *sessions.Session) error {
+	_, err := sm.DB.Exec("DELETE FROM sessions WHERE id = $1", session.ID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

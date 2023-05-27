@@ -13,6 +13,7 @@ type UsersServiceInterface interface {
 	Create(username, password, password_confirmation string) (*users.User, error)
 	GetByID(int64) (*users.User, error)
 	GetByUsername(string) (*users.User, error)
+	CheckCredentials(username, password string) (*users.User, error)
 }
 
 func NewUsersService(repo users.RepositoryInterface) UsersServiceInterface {
@@ -20,28 +21,32 @@ func NewUsersService(repo users.RepositoryInterface) UsersServiceInterface {
 }
 
 const (
-	ErrPasswordConfirmation  = "Password should match password confirmation"
-	ErrUsernameBlank         = "Username should be present"
-	ErrUsernameAlreadyExists = "This username already exists"
-	ErrPasswordTooShort      = "Password is too short"
+	MsgPasswordConfirmation  = "Password should match password confirmation"
+	MsgUsernameBlank         = "Username should be present"
+	MsgUsernameAlreadyExists = "This username already exists"
+	MsgPasswordTooShort      = "Password is too short"
 	MinPasswordLength        = 8
+)
+
+var (
+	MsgInvalidUserCredentials = "Invalid email or password"
 )
 
 func (s *UsersService) Create(username, password, password_confirmation string) (user *users.User, err error) {
 	user = &users.User{Username: username}
 
 	if len(username) == 0 {
-		err = &UserValidationError{ErrUsernameBlank}
+		err = &UserValidationError{MsgUsernameBlank}
 		return
 	}
 
 	if len(password) < MinPasswordLength {
-		err = &UserValidationError{ErrPasswordTooShort}
+		err = &UserValidationError{MsgPasswordTooShort}
 		return
 	}
 
 	if password != password_confirmation {
-		err = &UserValidationError{ErrPasswordConfirmation}
+		err = &UserValidationError{MsgPasswordConfirmation}
 		return
 	}
 
@@ -50,11 +55,11 @@ func (s *UsersService) Create(username, password, password_confirmation string) 
 		return
 	}
 	if foundUser != nil {
-		err = &UserValidationError{ErrUsernameAlreadyExists}
+		err = &UserValidationError{MsgUsernameAlreadyExists}
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
@@ -68,4 +73,24 @@ func (s *UsersService) GetByID(id int64) (*users.User, error) {
 
 func (s *UsersService) GetByUsername(username string) (*users.User, error) {
 	return s.Repo.GetByUsername(username)
+}
+
+func (s *UsersService) CheckCredentials(username, password string) (*users.User, error) {
+	if len(password) == 0 {
+		return nil, &UserCredentialsError{MsgInvalidUserCredentials}
+	}
+
+	foundUser, err := s.Repo.GetByUsername(username)
+	if err != nil {
+		return nil, err
+	}
+	if foundUser == nil {
+		return nil, &UserCredentialsError{MsgInvalidUserCredentials}
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(foundUser.Password), []byte(password)); err != nil {
+		return nil, &UserCredentialsError{MsgInvalidUserCredentials}
+	}
+
+	return foundUser, nil
 }

@@ -4,6 +4,8 @@ import (
 	"html/template"
 	"net/http"
 	"path/filepath"
+
+	"github.com/maxshend/grader/pkg/users"
 )
 
 type View struct {
@@ -16,9 +18,16 @@ func NewView(files ...string) (*View, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	name := files[0]
 	files = append(layouts, files...)
 
-	t, err := template.ParseFiles(files...)
+	t, err := template.New(name).Funcs(
+		template.FuncMap{
+			"currentUser":     func() *users.User { return nil },
+			"isAuthenticated": func() bool { return false },
+		},
+	).ParseFiles(files...)
 	if err != nil {
 		panic(err)
 	}
@@ -28,8 +37,13 @@ func NewView(files ...string) (*View, error) {
 	}, nil
 }
 
-func (v *View) RenderView(w http.ResponseWriter, data interface{}) error {
-	return v.Template.ExecuteTemplate(w, "main", data)
+func (v *View) RenderView(w http.ResponseWriter, data interface{}, currentUser *users.User) error {
+	return template.Must(v.Template.Clone()).Funcs(
+		template.FuncMap{
+			"currentUser":     func() *users.User { return currentUser },
+			"isAuthenticated": func() bool { return currentUser != nil },
+		},
+	).ExecuteTemplate(w, "main", data)
 }
 
 func layoutFiles() ([]string, error) {

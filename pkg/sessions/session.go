@@ -2,10 +2,12 @@ package sessions
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/maxshend/grader/pkg/users"
+	"github.com/maxshend/grader/pkg/utils"
 )
 
 type Session struct {
@@ -17,12 +19,15 @@ type Session struct {
 type RepositoryInterface interface {
 	GetByToken(string) (*Session, error)
 	Create(userID int64, token string) (*Session, error)
+	Destroy(*Session) error
 }
 
 type HttpSessionManager interface {
 	Check(*http.Request) (*Session, error)
 	Create(http.ResponseWriter, *users.User) (*Session, error)
-	CurrentUser(*http.Request) *users.User
+	CurrentUser(*http.Request) (*users.User, error)
+	CurrentSession(*http.Request) (*Session, error)
+	Destroy(http.ResponseWriter, *http.Request) error
 }
 
 type ctxKey int
@@ -33,7 +38,12 @@ const (
 )
 
 const (
-	ErrUnauthenticatedUser = "Unauthenticated user"
+	MsgUnauthenticatedUser = "unauthenticated user"
+	MsgForbiddenUser       = "not enough access rights"
+)
+
+var (
+	ErrUnauthenticatedUser = errors.New(MsgUnauthenticatedUser)
 )
 
 func AuthMiddleware(sm HttpSessionManager, repo users.RepositoryInterface) mux.MiddlewareFunc {
@@ -42,7 +52,7 @@ func AuthMiddleware(sm HttpSessionManager, repo users.RepositoryInterface) mux.M
 			session, err := sm.Check(r)
 			if err != nil {
 				if err == http.ErrNoCookie {
-					http.Error(w, ErrUnauthenticatedUser, http.StatusUnauthorized)
+					utils.RedirectUnauthenticated(w, r)
 					return
 				}
 
@@ -51,7 +61,7 @@ func AuthMiddleware(sm HttpSessionManager, repo users.RepositoryInterface) mux.M
 			}
 
 			if err != nil {
-				http.Error(w, ErrUnauthenticatedUser, http.StatusUnauthorized)
+				utils.RedirectUnauthenticated(w, r)
 				return
 			}
 
@@ -59,17 +69,36 @@ func AuthMiddleware(sm HttpSessionManager, repo users.RepositoryInterface) mux.M
 
 			user, err := repo.GetByID(session.UserID)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				utils.RenderInternalError(w, r, err)
 				return
 			}
 			if user == nil {
-				http.Error(w, ErrUnauthenticatedUser, http.StatusUnauthorized)
+				utils.RedirectUnauthenticated(w, r)
 				return
 			}
 
 			ctx = context.WithValue(ctx, CurrentUserKey, user)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func PolicyMiddleware(sm HttpSessionManager) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user, err := sm.CurrentUser(r)
+			if err != nil {
+				http.Error(w, MsgForbiddenUser, http.StatusForbidden)
+				return
+			}
+
+			if !user.IsAdmin {
+				http.Error(w, MsgForbiddenUser, http.StatusForbidden)
+				return
+			}
+
+			next.ServeHTTP(w, r)
 		})
 	}
 }

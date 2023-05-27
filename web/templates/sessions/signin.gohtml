@@ -1,9 +1,9 @@
 {{define "yield"}}
-<h1>Sign Up</h1>
+<h1>Sign In</h1>
 
 {{template "form_errors" .}}
 
-<form action="/users" method="post">
+<form action="/sessions" method="post">
   <div class="mb-3">
     <label for="username" class="form-label">Username</label>
     <input type="text" class="form-control" name="username" value="{{.User.Username}}" required>
@@ -12,11 +12,6 @@
   <div class="mb-3">
     <label for="password" class="form-label">Password</label>
     <input type="password" class="form-control" name="password" required>
-  </div>
-
-  <div class="mb-3">
-    <label for="password_confirmation" class="form-label">Password Confirmation</label>
-    <input type="password" class="form-control" name="password_confirmation" required>
   </div>
 
   <button type="submit" class="btn btn-primary">Submit</button>

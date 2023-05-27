@@ -33,8 +33,11 @@ func (r *UsersSQLRepo) Create(username, password string, role int) (*users.User,
 func (r *UsersSQLRepo) GetByID(id int64) (*users.User, error) {
 	user := &users.User{}
 
-	err := r.DB.QueryRow("SELECT id, username, role FROM users WHERE id = $1 LIMIT 1", id).Scan(
-		&user.ID, &user.Username, &user.Role,
+	err := r.DB.QueryRow(
+		"SELECT id, username, role, is_admin, password FROM users WHERE id = $1 LIMIT 1",
+		id,
+	).Scan(
+		&user.ID, &user.Username, &user.Role, &user.IsAdmin, &user.Password,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -50,8 +53,11 @@ func (r *UsersSQLRepo) GetByID(id int64) (*users.User, error) {
 func (r *UsersSQLRepo) GetByUsername(username string) (*users.User, error) {
 	user := &users.User{}
 
-	err := r.DB.QueryRow("SELECT id, username, role FROM users WHERE username = $1 LIMIT 1", username).Scan(
-		&user.ID, &user.Username, &user.Role,
+	err := r.DB.QueryRow(
+		"SELECT id, username, role, is_admin, password FROM users WHERE username = $1 LIMIT 1",
+		username,
+	).Scan(
+		&user.ID, &user.Username, &user.Role, &user.IsAdmin, &user.Password,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
