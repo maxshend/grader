@@ -3,6 +3,7 @@ package delivery
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/maxshend/grader/pkg/assignments"
@@ -25,6 +26,13 @@ type newSubmissionData struct {
 	Errors     []string
 }
 
+type newAssignmentnData struct {
+	Assignment *assignments.Assignment
+	Files      string
+	Errors     []string
+	Action     string
+}
+
 func NewAssignmentsHttpHandler(
 	service services.AssignmentsServiceInterface,
 	sessionManager sessions.HttpSessionManager,
@@ -37,6 +45,15 @@ func NewAssignmentsHttpHandler(
 	if err != nil {
 		return nil, err
 	}
+	views["AssignmentForm"], err = utils.NewView("./web/templates/assignments/admin/assignment_form.gohtml")
+	if err != nil {
+		return nil, err
+	}
+	views["Show"], err = utils.NewView("./web/templates/assignments/admin/assignment.gohtml")
+	if err != nil {
+		return nil, err
+	}
+
 	views["GetAllPersonal"], err = utils.NewView("./web/templates/assignments/list.gohtml")
 	if err != nil {
 		return nil, err
@@ -218,4 +235,186 @@ func (h AssignmentsHttpHandler) ShowPersonal(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		utils.RenderInternalError(w, r, err)
 	}
+}
+
+func (h AssignmentsHttpHandler) New(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	err = h.Views["AssignmentForm"].RenderView(
+		w,
+		newAssignmentnData{
+			Assignment: &assignments.Assignment{},
+			Action:     "create",
+		},
+		currentUser,
+	)
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+	}
+}
+
+func (h AssignmentsHttpHandler) Create(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	assignment := &assignments.Assignment{
+		Title:       r.FormValue("title"),
+		Description: r.FormValue("description"),
+		GraderURL:   r.FormValue("grader_url"),
+		Container:   r.FormValue("container"),
+		PartID:      r.FormValue("part_id"),
+		Files:       formatAssignmentFiles(r.FormValue("files")),
+	}
+	_, err = h.Service.Create(assignment)
+	if err != nil {
+		if _, ok := err.(*services.AssignmentValidationError); ok {
+			err = h.Views["AssignmentForm"].RenderView(
+				w,
+				newAssignmentnData{
+					Assignment: assignment,
+					Files:      r.FormValue("files"),
+					Errors:     []string{err.Error()},
+					Action:     "create",
+				},
+				currentUser,
+			)
+			if err != nil {
+				utils.RenderInternalError(w, r, err)
+			}
+		} else {
+			utils.RenderInternalError(w, r, err)
+		}
+
+		return
+	}
+
+	http.Redirect(w, r, "/admin/assignments", http.StatusSeeOther)
+}
+
+func (h AssignmentsHttpHandler) Edit(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	params := mux.Vars(r)
+	assignment, err := h.Service.GetByID(params["id"])
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+		return
+	}
+	if assignment == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	err = h.Views["AssignmentForm"].RenderView(
+		w,
+		newAssignmentnData{
+			Assignment: assignment,
+			Files:      strings.Join(assignment.Files, ","),
+			Action:     "update",
+		},
+		currentUser,
+	)
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+	}
+}
+
+func (h AssignmentsHttpHandler) Update(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	params := mux.Vars(r)
+	assignment, err := h.Service.GetByID(params["id"])
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+		return
+	}
+	if assignment == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	assignment.Title = r.FormValue("title")
+	assignment.Description = r.FormValue("description")
+	assignment.GraderURL = r.FormValue("grader_url")
+	assignment.Container = r.FormValue("container")
+	assignment.PartID = r.FormValue("part_id")
+	assignment.Files = formatAssignmentFiles(r.FormValue("files"))
+
+	_, err = h.Service.Update(assignment)
+	if err != nil {
+		if _, ok := err.(*services.AssignmentValidationError); ok {
+			err = h.Views["AssignmentForm"].RenderView(
+				w,
+				newAssignmentnData{
+					Assignment: assignment,
+					Files:      r.FormValue("files"),
+					Errors:     []string{err.Error()},
+					Action:     "update",
+				},
+				currentUser,
+			)
+			if err != nil {
+				utils.RenderInternalError(w, r, err)
+			}
+		} else {
+			utils.RenderInternalError(w, r, err)
+		}
+	}
+
+	http.Redirect(w, r, "/admin/assignments", http.StatusSeeOther)
+}
+
+func (h AssignmentsHttpHandler) Show(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	params := mux.Vars(r)
+	assignment, err := h.Service.GetByID(params["id"])
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+		return
+	}
+	if assignment == nil {
+		http.NotFound(w, r)
+		return
+	}
+	submissionsList, err := h.SubmissionsService.GetByAssignment(assignment.ID)
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+		return
+	}
+
+	err = h.Views["Show"].RenderView(
+		w,
+		&struct {
+			Assignment  *assignments.Assignment
+			Submissions []*submissions.Submission
+		}{assignment, submissionsList},
+		currentUser,
+	)
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+	}
+}
+
+func formatAssignmentFiles(files string) []string {
+	return strings.Split(files, ",")
 }

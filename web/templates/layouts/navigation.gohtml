@@ -8,6 +8,11 @@
         <li class="nav-item">
           <a class="nav-link" href="/assignments">My Assignments</a>
         </li>
+        {{if isAuthenticated}}
+          <li class="nav-item-">
+            <a class="nav-link text-info" href="/admin/assignments">Assignments</a>
+          </li>
+        {{end}}
       </ul>
 
       {{if isAuthenticated}}

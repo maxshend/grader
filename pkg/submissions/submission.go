@@ -17,6 +17,7 @@ type Submission struct {
 	Status       int
 	AssignmentID int64
 	UserID       int64
+	Username     string
 	Details      string
 	Attachments  []*Attachment
 	CreatedAt    time.Time
@@ -34,5 +35,6 @@ type RepositoryInterface interface {
 	GetSubmissionAttachments(int64) ([]*Attachment, error)
 	GetByID(int64) (*Submission, error)
 	Update(*Submission) error
-	GetByUserAssignment(assignmentID int64, userID int64, limit int, offset int) ([]*Submission, error)
+	GetByUserAssignment(assignmentID int64, userID int64, limit, offset int) ([]*Submission, error)
+	GetByAssignment(assignmentID int64, limit, offset int) ([]*Submission, error)
 }

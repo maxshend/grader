@@ -18,6 +18,7 @@ type SubmissionsServiceInterface interface {
 	GetByID(int64) (*submissions.Submission, error)
 	Update(*submissions.Submission) error
 	GetByUserAssignment(assignmentID, userID int64) ([]*submissions.Submission, error)
+	GetByAssignment(assignmentID int64) ([]*submissions.Submission, error)
 }
 
 func NewSubmissionsService(repo submissions.RepositoryInterface, jwtSeret string) SubmissionsServiceInterface {
@@ -48,7 +49,7 @@ func (s *SubmissionsService) HandleWebhook(token string, submissionID int64, pas
 		newStatus = submissions.Fail
 	}
 	submission.Status = newStatus
-	// strings.Replace fixes: pq: invalid byte sequence for encoding "UTF8": 0x00
+	// strings.Replace is used to fix: pq: invalid byte sequence for encoding "UTF8": 0x00
 	submission.Details = strings.Replace(text, "\u0000", "", -1)
 
 	err = s.Update(submission)
@@ -70,4 +71,9 @@ func (s *SubmissionsService) Update(submission *submissions.Submission) error {
 func (s *SubmissionsService) GetByUserAssignment(assignmentID, userID int64) ([]*submissions.Submission, error) {
 	// TODO: Pagination handling
 	return s.Repo.GetByUserAssignment(assignmentID, userID, 100, 0)
+}
+
+func (s *SubmissionsService) GetByAssignment(assignmentID int64) ([]*submissions.Submission, error) {
+	// TODO: Pagination handling
+	return s.Repo.GetByAssignment(assignmentID, 100, 0)
 }

@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/maxshend/grader/pkg/assignments"
 	"github.com/maxshend/grader/pkg/attachments"
@@ -41,7 +43,14 @@ type SubmitAssignmentTask struct {
 }
 
 const (
-	MsgSubmissionFilesError = "required submission file not present or has a wrong name"
+	MsgSubmissionFilesError  = "required submission file not present or has a wrong name"
+	MsgBlankTitleError       = "title can't be blank"
+	MsgBlankDescriptionError = "description can't be blank"
+	MsgInvalidGraderURLError = "grader url is not a valid url"
+	MsgBlankContainerError   = "container can't be blank"
+	MsgBlankPartIDError      = "part id can't be blank"
+	MsgUniqueTitleError      = "title already exists"
+	MsgInvalidFilesError     = "files have invalid format"
 )
 
 type AssignmentsServiceInterface interface {
@@ -49,6 +58,9 @@ type AssignmentsServiceInterface interface {
 	GetByID(string) (*assignments.Assignment, error)
 	GetByUserID(int64) ([]*assignments.Assignment, error)
 	Submit(*users.User, *assignments.Assignment, []*SubmissionFile) (*submissions.Submission, error)
+	Create(*assignments.Assignment) (*assignments.Assignment, error)
+	Update(*assignments.Assignment) (*assignments.Assignment, error)
+	ValidateAssignment(*assignments.Assignment) error
 }
 
 func NewAssignmentsService(
@@ -77,7 +89,12 @@ func (s *AssignmentsService) GetAll() ([]*assignments.Assignment, error) {
 }
 
 func (s *AssignmentsService) GetByID(id string) (*assignments.Assignment, error) {
-	return s.Repo.GetByID(id)
+	assignmentID, err := strconv.Atoi(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.Repo.GetByID(int64(assignmentID))
 }
 
 func (s *AssignmentsService) GetByUserID(userID int64) ([]*assignments.Assignment, error) {
@@ -157,4 +174,70 @@ func (s *AssignmentsService) Submit(user *users.User, assignment *assignments.As
 	}
 
 	return submission, nil
+}
+
+func (s *AssignmentsService) Create(assignment *assignments.Assignment) (*assignments.Assignment, error) {
+	foundAssignment, err := s.Repo.GetByTitle(assignment.Title)
+	if err != nil {
+		return nil, err
+	}
+	if foundAssignment != nil {
+		return nil, &AssignmentValidationError{MsgUniqueTitleError}
+	}
+
+	for i, file := range assignment.Files {
+		assignment.Files[i] = strings.TrimSpace(file)
+	}
+
+	err = s.ValidateAssignment(assignment)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.Repo.Create(
+		assignment.Title,
+		assignment.Description,
+		assignment.GraderURL,
+		assignment.Container,
+		assignment.PartID,
+		assignment.Files,
+	)
+}
+
+func (s *AssignmentsService) Update(assignment *assignments.Assignment) (*assignments.Assignment, error) {
+	for i, file := range assignment.Files {
+		assignment.Files[i] = strings.TrimSpace(file)
+	}
+
+	err := s.ValidateAssignment(assignment)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.Repo.Update(assignment)
+}
+
+func (s *AssignmentsService) ValidateAssignment(assignment *assignments.Assignment) error {
+	if len(assignment.Title) == 0 {
+		return &AssignmentValidationError{MsgBlankTitleError}
+	}
+	if len(assignment.Description) == 0 {
+		return &AssignmentValidationError{MsgBlankDescriptionError}
+	}
+	if _, err := url.ParseRequestURI(assignment.GraderURL); err != nil {
+		return &AssignmentValidationError{MsgInvalidGraderURLError}
+	}
+	if len(assignment.Container) == 0 {
+		return &AssignmentValidationError{MsgBlankContainerError}
+	}
+	if len(assignment.PartID) == 0 {
+		return &AssignmentValidationError{MsgBlankPartIDError}
+	}
+	for _, file := range assignment.Files {
+		if len(file) == 0 {
+			return &AssignmentValidationError{MsgInvalidFilesError}
+		}
+	}
+
+	return nil
 }

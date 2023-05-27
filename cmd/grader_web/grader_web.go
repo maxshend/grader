@@ -133,9 +133,14 @@ func main() {
 
 	adminPages := router.PathPrefix("/admin").Subrouter()
 	adminPages.HandleFunc("/assignments", assignmentsHandler.GetAll).Methods("GET")
+	adminPages.HandleFunc("/assignments/", assignmentsHandler.Create).Methods("POST")
+	adminPages.HandleFunc("/assignments/new", assignmentsHandler.New).Methods("GET")
+	adminPages.HandleFunc("/assignments/{id}/edit", assignmentsHandler.Edit).Methods("GET")
+	adminPages.HandleFunc("/assignments/{id}", assignmentsHandler.Update).Methods("POST")
+	adminPages.HandleFunc("/assignments/{id}", assignmentsHandler.Show).Methods("GET")
 	adminPages.Use(
 		sessions.AuthMiddleware(sessionManager, userRepo),
-		sessions.PolicyMiddleware(sessionManager),
+		sessions.AdminPolicyMiddleware(sessionManager),
 	)
 
 	router.HandleFunc("/signup", usersHandler.New).Methods("GET")

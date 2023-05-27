@@ -1,0 +1,47 @@
+{{define "yield"}}
+
+
+{{$pathSuffix := ""}}
+{{if eq .Action "create"}}
+  <h1>New Assignment</h1>
+{{else}}
+  {{$pathSuffix = .Assignment.ID}}
+  <h1>Edit Assignment #{{.Assignment.ID}}</h1>
+  <a href="/assignments/{{.Assignment.ID}}/submissions/new">Submission Link</a>
+{{end}}
+
+{{template "form_errors" .}}
+
+<form action="/admin/assignments/{{$pathSuffix}}" method="post" class="my-2">
+  <div class="mb-3">
+    <label for="title" class="form-label">Title</label>
+    <input type="text" class="form-control" name="title" value="{{.Assignment.Title}}">
+  </div>
+
+  <div class="mb-3">
+    <label for="description" class="form-label">Description</label>
+    <input type="text" class="form-control" name="description" value="{{.Assignment.Description}}">
+  </div>
+
+  <div class="mb-3">
+    <label for="grader_url" class="form-label">Grader URL</label>
+    <input type="text" class="form-control" name="grader_url" value="{{.Assignment.GraderURL}}">
+  </div>
+
+  <div class="mb-3">
+    <label for="container" class="form-label">Container</label>
+    <input type="text" class="form-control" name="container" value="{{.Assignment.Container}}">
+  </div>
+
+  <div class="mb-3">
+    <label for="part_id" class="form-label">Part ID</label>
+    <input type="text" class="form-control" name="part_id" value="{{.Assignment.PartID}}">
+  </div>
+
+  <div class="mb-3">
+    <label for="files" class="form-label">Files (<i>Comma separated list of files. For example: main.go, lib.go</i>)</label>
+    <input type="text" class="form-control" name="files" value="{{.Files}}">
+  </div>
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+{{end}}

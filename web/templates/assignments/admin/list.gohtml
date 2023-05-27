@@ -1,19 +1,25 @@
 {{define "yield"}}
+<h1>Assignments</h1>
+
 <table class="table">
   <thead>
     <tr>
       <th scope="col">#</th>
       <th scope="col">Title</th>
       <th scope="col">Grader URL</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
     <a class="btn btn-primary" href="/admin/assignments/new">Create</a>
     {{range .Assignments}}
       <tr>
-        <th scope="row">{{.ID}}</th>
-        <td>{{.Title}}</td>
+        <td><a href="/admin/assignments/{{.ID}}">{{.ID}}</a></td>
+        <td><a href="/admin/assignments/{{.ID}}">{{.Title}}</a></td>
         <td>{{.GraderURL}}</td>
+        <td>
+          <a class="btn btn-outline-primary" href="/admin/assignments/{{.ID}}/edit">Edit</a>
+        </td>
       </tr>
     {{end}}
   </tbody>

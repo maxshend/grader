@@ -2,7 +2,6 @@ package repo
 
 import (
 	"database/sql"
-	"strconv"
 
 	"github.com/lib/pq"
 	"github.com/maxshend/grader/pkg/assignments"
@@ -46,17 +45,12 @@ func (r *AssignmentsSQLRepo) GetAll(limit int, offset int) ([]*assignments.Assig
 	return result, nil
 }
 
-func (r *AssignmentsSQLRepo) GetByID(id string) (*assignments.Assignment, error) {
-	assignmentID, err := strconv.Atoi(id)
-	if err != nil {
-		return nil, err
-	}
-
+func (r *AssignmentsSQLRepo) GetByID(id int64) (*assignments.Assignment, error) {
 	assignment := &assignments.Assignment{}
-	err = r.DB.QueryRow(
+	err := r.DB.QueryRow(
 		"SELECT id, title, description, grader_url, container, part_id, files "+
 			"FROM assignments WHERE id = $1 LIMIT 1",
-		assignmentID,
+		id,
 	).Scan(
 		&assignment.ID, &assignment.Title, &assignment.Description,
 		&assignment.GraderURL, &assignment.Container, &assignment.PartID, pq.Array(&assignment.Files),
@@ -103,4 +97,65 @@ func (r *AssignmentsSQLRepo) GetByUserID(userID int64, limit, offset int) ([]*as
 	}
 
 	return result, nil
+}
+
+func (r *AssignmentsSQLRepo) Create(
+	title, description, graderURL,
+	container, partID string, files []string,
+) (*assignments.Assignment, error) {
+	assignment := &assignments.Assignment{
+		Title:       title,
+		Description: description,
+		GraderURL:   graderURL,
+		Container:   container,
+		PartID:      partID,
+		Files:       files,
+	}
+
+	err := r.DB.QueryRow(
+		"INSERT INTO assignments (title, description, grader_url, container, part_id, files) "+
+			"VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+		title, description, graderURL, container, partID, pq.Array(files),
+	).Scan(&assignment.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return assignment, nil
+}
+
+func (r *AssignmentsSQLRepo) Update(assignment *assignments.Assignment) (*assignments.Assignment, error) {
+	_, err := r.DB.Exec(
+		"UPDATE assignments SET title = $1, description = $2, grader_url = $3, container = $4, "+
+			"part_id = $5, files = $6 WHERE id = $7",
+		assignment.Title, assignment.Description, assignment.GraderURL, assignment.Container,
+		assignment.PartID, pq.Array(assignment.Files), assignment.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return assignment, nil
+}
+
+func (r *AssignmentsSQLRepo) GetByTitle(title string) (*assignments.Assignment, error) {
+	assignment := &assignments.Assignment{}
+	err := r.DB.QueryRow(
+		"SELECT id, title, description, grader_url, container, part_id, files "+
+			"FROM assignments WHERE title = $1 LIMIT 1",
+		title,
+	).Scan(
+		&assignment.ID, &assignment.Title, &assignment.Description,
+		&assignment.GraderURL, &assignment.Container, &assignment.PartID, pq.Array(&assignment.Files),
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	return assignment, nil
 }

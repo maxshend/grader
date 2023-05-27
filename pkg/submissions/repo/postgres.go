@@ -173,3 +173,42 @@ func (r *SubmissionsSQLRepo) GetByUserAssignment(
 
 	return result, nil
 }
+
+func (r *SubmissionsSQLRepo) GetByAssignment(
+	assignmentID int64,
+	limit, offset int,
+) ([]*submissions.Submission, error) {
+	rows, err := r.DB.Query(
+		"SELECT submissions.id, submissions.status, submissions.details, "+
+			"submissions.created_at, users.username AS username "+
+			"FROM submissions JOIN users ON submissions.user_id = users.id WHERE assignment_id = $1 "+
+			"ORDER BY id DESC LIMIT $2 OFFSET $3",
+		assignmentID, limit, offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := []*submissions.Submission{}
+	for rows.Next() {
+		detailsString := sql.NullString{}
+		submission := &submissions.Submission{AssignmentID: assignmentID}
+		err = rows.Scan(
+			&submission.ID, &submission.Status, &detailsString, &submission.CreatedAt, &submission.Username,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if detailsString.Valid {
+			submission.Details = detailsString.String
+		}
+
+		result = append(result, submission)
+	}
+	if err = rows.Err(); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}

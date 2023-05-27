@@ -84,7 +84,7 @@ func AuthMiddleware(sm HttpSessionManager, repo users.RepositoryInterface) mux.M
 	}
 }
 
-func PolicyMiddleware(sm HttpSessionManager) mux.MiddlewareFunc {
+func AdminPolicyMiddleware(sm HttpSessionManager) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user, err := sm.CurrentUser(r)
