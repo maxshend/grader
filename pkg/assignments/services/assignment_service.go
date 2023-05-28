@@ -97,16 +97,9 @@ func (s *AssignmentsService) GetByUserID(userID int64) ([]*assignments.Assignmen
 }
 
 func (s *AssignmentsService) Submit(user *users.User, assignment *assignments.Assignment, files []*SubmissionFile) (*submissions.Submission, error) {
-	for _, file := range files {
-		for i, requiredFile := range assignment.Files {
-			if requiredFile == file.Name {
-				break
-			}
-
-			if i == len(assignment.Files)-1 {
-				return nil, &AssignmentValidationError{MsgSubmissionFilesError}
-			}
-		}
+	err := checkSubmissionFiles(assignment.Files, files)
+	if err != nil {
+		return nil, err
 	}
 
 	submission, err := s.SubmissionsRepo.Create(user.ID, assignment.ID)
@@ -231,6 +224,22 @@ func (s *AssignmentsService) ValidateAssignment(assignment *assignments.Assignme
 	for _, file := range assignment.Files {
 		if len(file) == 0 {
 			return &AssignmentValidationError{MsgInvalidFilesError}
+		}
+	}
+
+	return nil
+}
+
+func checkSubmissionFiles(requiredFiles []string, requestFiles []*SubmissionFile) error {
+	for _, file := range requestFiles {
+		for i, requiredFile := range requiredFiles {
+			if requiredFile == file.Name {
+				break
+			}
+
+			if i == len(requiredFiles)-1 {
+				return &AssignmentValidationError{MsgSubmissionFilesError}
+			}
 		}
 	}
 

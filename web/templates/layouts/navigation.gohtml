@@ -3,24 +3,24 @@
   <div class="container-fluid">
     <a class="navbar-brand" href="/">Grader</a>
 
-    <div class="collapse navbar-collapse">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item">
-          <a class="nav-link" href="/assignments">My Assignments</a>
-        </li>
-        {{if isAuthenticated}}
-          <li class="nav-item-">
-            <a class="nav-link text-info" href="/admin/assignments">Assignments</a>
+    {{if isAuthenticated}}
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link" href="/assignments">My Assignments</a>
           </li>
-        {{end}}
-      </ul>
+          {{if currentUser.IsAdmin}}
+            <li class="nav-item-">
+              <a class="nav-link text-info" href="/admin/assignments">Assignments</a>
+            </li>
+          {{end}}
+        </ul>
 
-      {{if isAuthenticated}}
-      <form action="/logout" method="post" class="form-inline my-2 my-lg-0">
-        <span class="fw-bold mx-2">{{currentUser.Username}}</span>
-        <button class="btn btn-outline-danger" type="submit">Logout</button>
-      </form>
-    </div>
+        <form action="/logout" method="post" class="form-inline my-2 my-lg-0">
+          <span class="fw-bold mx-2">{{currentUser.Username}}</span>
+          <button class="btn btn-outline-danger" type="submit">Logout</button>
+        </form>
+      </div>
     {{end}}
   </div>
 </nav>

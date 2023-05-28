@@ -26,58 +26,22 @@ type ContainerResponse struct {
 const (
 	successMsg         = "Поздравляем! Вы успешно сделали задание"
 	submissionFilesDir = "/app/src"
+	MaxWaitMinutes     = 5
+	TimeoutMsg         = "Timeout"
 )
 
-// TODO: Refactor RunSubmission
 func (s *SubmissionTaskService) RunSubmission(ctx context.Context, task *submission_tasks.SubmissionTask) error {
-	dir := fmt.Sprintf("/tmp/submission_%d", task.SubmissionID)
-	err := os.Mkdir(dir, 0755)
+	dir, rmDir, err := tmpSaveAttachments(task)
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(dir)
-
-	for _, file := range task.Files {
-		fullpath := filepath.Join(dir, file.Name)
-		newFile, err := os.Create(fullpath)
-		if err != nil {
-			return err
+	defer func() {
+		if err := rmDir(); err != nil {
+			log.Printf("Error while removing dir: %q\n", err)
 		}
-		defer newFile.Close()
+	}()
 
-		resp, err := http.Get(file.URL)
-		if err != nil {
-			return err
-		}
-
-		_, err = io.Copy(newFile, resp.Body)
-		if err != nil {
-			return err
-		}
-	}
-
-	containerName := fmt.Sprintf("run_submission_%d", task.SubmissionID)
-	resp, err := s.DockerClient.ContainerCreate(
-		ctx,
-		&container.Config{
-			User:            "1000",
-			NetworkDisabled: true,
-			Image:           task.Container,
-			Cmd:             []string{"sh", fmt.Sprintf("%s.sh", task.PartID)},
-		},
-		&container.HostConfig{
-			Mounts: []mount.Mount{
-				{
-					Type:   mount.TypeBind,
-					Source: dir,
-					Target: submissionFilesDir,
-				},
-			},
-		},
-		nil,
-		nil,
-		containerName,
-	)
+	resp, err := s.createContainer(ctx, task, dir)
 	if err != nil {
 		return err
 	}
@@ -86,10 +50,11 @@ func (s *SubmissionTaskService) RunSubmission(ctx context.Context, task *submiss
 		return err
 	}
 
-	// TODO: Restrict wait time
-
 	containerResponse := &ContainerResponse{}
 	statusCh, errCh := s.DockerClient.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
+	containerTimer := time.NewTimer(MaxWaitMinutes * time.Minute)
+	defer containerTimer.Stop()
+
 	select {
 	case err := <-errCh:
 		return err
@@ -115,6 +80,9 @@ func (s *SubmissionTaskService) RunSubmission(ctx context.Context, task *submiss
 			containerResponse.Pass = false
 			containerResponse.Text = string(out)
 		}
+	case <-containerTimer.C:
+		containerResponse.Pass = false
+		containerResponse.Text = TimeoutMsg
 	}
 
 	noWaitTimeout := 0 // to not wait for the container to exit gracefully
@@ -156,4 +124,80 @@ func sendResults(graderURL string, authorization string, containerResponse *Cont
 	}
 
 	return response, nil
+}
+
+func (s *SubmissionTaskService) createContainer(
+	ctx context.Context,
+	task *submission_tasks.SubmissionTask,
+	mountDir string,
+) (resp container.CreateResponse, err error) {
+	containerName := fmt.Sprintf("run_submission_%d", task.SubmissionID)
+	resp, err = s.DockerClient.ContainerCreate(
+		ctx,
+		&container.Config{
+			User:            "1000",
+			NetworkDisabled: true,
+			Image:           task.Container,
+			Cmd:             []string{"sh", fmt.Sprintf("%s.sh", task.PartID)},
+		},
+		&container.HostConfig{
+			Mounts: []mount.Mount{
+				{
+					Type:   mount.TypeBind,
+					Source: mountDir,
+					Target: submissionFilesDir,
+				},
+			},
+		},
+		nil,
+		nil,
+		containerName,
+	)
+
+	return
+}
+
+func tmpSaveAttachments(task *submission_tasks.SubmissionTask) (dir string, rmDir func() error, err error) {
+	dir = fmt.Sprintf("/tmp/submission_%d", task.SubmissionID)
+	err = os.Mkdir(dir, 0755)
+	if err != nil {
+		return
+	}
+	rmDir = func() error {
+		return os.RemoveAll(dir)
+	}
+	defer func() {
+		if err != nil {
+			rmErr := rmDir()
+
+			if rmErr != nil {
+				err = rmErr
+			}
+		}
+	}()
+
+	for _, file := range task.Files {
+		fullpath := filepath.Join(dir, file.Name)
+		var newFile *os.File
+
+		newFile, err = os.Create(fullpath)
+		if err != nil {
+			return
+		}
+		defer newFile.Close()
+
+		var resp *http.Response
+
+		resp, err = http.Get(file.URL)
+		if err != nil {
+			return
+		}
+
+		_, err = io.Copy(newFile, resp.Body)
+		if err != nil {
+			return
+		}
+	}
+
+	return
 }
