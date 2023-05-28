@@ -101,7 +101,13 @@ func submitWorker(wg *sync.WaitGroup, tasks <-chan amqp.Delivery) {
 		log.Printf("Incoming Task: %+v\n", taskItem)
 
 		func(taskItem amqp.Delivery) {
-			defer taskItem.Ack(false)
+			defer func() {
+				err := taskItem.Ack(false)
+
+				if err != nil {
+					log.Println(err)
+				}
+			}()
 
 			task := &SubmissionTask{}
 			err := json.Unmarshal(taskItem.Body, task)
@@ -123,7 +129,8 @@ func submitWorker(wg *sync.WaitGroup, tasks <-chan amqp.Delivery) {
 
 			responseBody, err := io.ReadAll(response.Body)
 			if err != nil {
-				log.Fatalln(err)
+				log.Printf("Error while reading response body: %q\n", err)
+				return
 			}
 
 			log.Printf(

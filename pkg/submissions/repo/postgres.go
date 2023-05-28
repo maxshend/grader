@@ -70,32 +70,43 @@ func (r *SubmissionsSQLRepo) CreateSubmissionAttachments(
 	return r.GetSubmissionAttachments(submissionID)
 }
 
-func (r *SubmissionsSQLRepo) insertMultipleAttachments(submissionID int64, attachments []*attachments.Attachment) error {
+func (r *SubmissionsSQLRepo) insertMultipleAttachments(submissionID int64, attachments []*attachments.Attachment) (err error) {
 	txn, err := r.DB.Begin()
 	if err != nil {
-		return err
+		return
 	}
-	defer txn.Commit()
+	defer func() {
+		if err != nil {
+			rollbackErr := txn.Rollback()
+			if rollbackErr != nil {
+				err = rollbackErr
+			}
+
+			return
+		}
+
+		err = txn.Commit()
+	}()
 
 	stm, err := txn.Prepare(pq.CopyIn("submission_attachments", "url", "name", "submission_id"))
 	if err != nil {
-		return err
+		return
 	}
 	defer stm.Close()
 
 	for _, attachment := range attachments {
-		_, err := stm.Exec(attachment.URL, attachment.Name, submissionID)
+		_, err = stm.Exec(attachment.URL, attachment.Name, submissionID)
 		if err != nil {
-			return err
+			return
 		}
 	}
 
 	_, err = stm.Exec()
 	if err != nil {
-		return err
+		return
 	}
 
-	return nil
+	return
 }
 
 func (r *SubmissionsSQLRepo) GetByID(id int64) (*submissions.Submission, error) {
