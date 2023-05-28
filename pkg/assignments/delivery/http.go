@@ -3,6 +3,7 @@ package delivery
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -128,7 +129,7 @@ func (h AssignmentsHttpHandler) NewSubmission(w http.ResponseWriter, r *http.Req
 
 	params := mux.Vars(r)
 
-	assignment, err := h.Service.GetByID(params["id"])
+	assignment, err := h.Service.GetByID(assignmentID(params["id"]))
 	if err != nil {
 		utils.RenderInternalError(w, r, err)
 		return
@@ -158,7 +159,7 @@ func (h AssignmentsHttpHandler) CreateSubmission(w http.ResponseWriter, r *http.
 	r.Body = http.MaxBytesReader(w, r.Body, 5*1024*1024)
 	params := mux.Vars(r)
 
-	assignment, err := h.Service.GetByID(params["id"])
+	assignment, err := h.Service.GetByID(assignmentID(params["id"]))
 	if err != nil {
 		utils.RenderInternalError(w, r, err)
 		return
@@ -209,7 +210,7 @@ func (h AssignmentsHttpHandler) ShowPersonal(w http.ResponseWriter, r *http.Requ
 	}
 
 	params := mux.Vars(r)
-	assignment, err := h.Service.GetByID(params["id"])
+	assignment, err := h.Service.GetByID(assignmentID(params["id"]))
 	if err != nil {
 		utils.RenderInternalError(w, r, err)
 		return
@@ -306,7 +307,7 @@ func (h AssignmentsHttpHandler) Edit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := mux.Vars(r)
-	assignment, err := h.Service.GetByID(params["id"])
+	assignment, err := h.Service.GetByID(assignmentID(params["id"]))
 	if err != nil {
 		utils.RenderInternalError(w, r, err)
 		return
@@ -338,7 +339,7 @@ func (h AssignmentsHttpHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := mux.Vars(r)
-	assignment, err := h.Service.GetByID(params["id"])
+	assignment, err := h.Service.GetByID(assignmentID(params["id"]))
 	if err != nil {
 		utils.RenderInternalError(w, r, err)
 		return
@@ -387,7 +388,7 @@ func (h AssignmentsHttpHandler) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := mux.Vars(r)
-	assignment, err := h.Service.GetByID(params["id"])
+	assignment, err := h.Service.GetByID(assignmentID(params["id"]))
 	if err != nil {
 		utils.RenderInternalError(w, r, err)
 		return
@@ -417,4 +418,10 @@ func (h AssignmentsHttpHandler) Show(w http.ResponseWriter, r *http.Request) {
 
 func formatAssignmentFiles(files string) []string {
 	return strings.Split(files, ",")
+}
+
+func assignmentID(param string) int64 {
+	id, _ := strconv.ParseInt(param, 10, 64)
+
+	return id
 }

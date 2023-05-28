@@ -55,7 +55,7 @@ const (
 
 type AssignmentsServiceInterface interface {
 	GetAll() ([]*assignments.Assignment, error)
-	GetByID(string) (*assignments.Assignment, error)
+	GetByID(int64) (*assignments.Assignment, error)
 	GetByUserID(int64) ([]*assignments.Assignment, error)
 	Submit(*users.User, *assignments.Assignment, []*SubmissionFile) (*submissions.Submission, error)
 	Create(*assignments.Assignment) (*assignments.Assignment, error)
@@ -88,13 +88,8 @@ func (s *AssignmentsService) GetAll() ([]*assignments.Assignment, error) {
 	return s.Repo.GetAll(100, 0)
 }
 
-func (s *AssignmentsService) GetByID(id string) (*assignments.Assignment, error) {
-	assignmentID, err := strconv.Atoi(id)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.Repo.GetByID(int64(assignmentID))
+func (s *AssignmentsService) GetByID(id int64) (*assignments.Assignment, error) {
+	return s.Repo.GetByID(id)
 }
 
 func (s *AssignmentsService) GetByUserID(userID int64) ([]*assignments.Assignment, error) {
