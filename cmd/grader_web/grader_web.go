@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"embed"
 	"log"
 	"net/http"
 	"net/url"
@@ -29,8 +30,16 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
+	_ "embed"
+
 	_ "github.com/lib/pq"
 )
+
+//go:embed all:static/*
+var staticFS embed.FS
+
+//go:embed all:templates/*
+var templatesFS embed.FS
 
 func main() {
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -115,16 +124,17 @@ func main() {
 		assignmentsService,
 		sessionManager,
 		submissionsService,
+		templatesFS,
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
-	usersHandler, err := usersDelivery.NewUsersHttpHandler(usersService, sessionManager)
+	usersHandler, err := usersDelivery.NewUsersHttpHandler(usersService, sessionManager, templatesFS)
 	if err != nil {
 		log.Fatal(err)
 	}
 	submissionsHandler := submissionsDelivery.NewSubmissionsHttpHandler(submissionsService)
-	sessionsHandler, err := sessionsDelivery.NewSessionsHttpHandler(sessionManager, usersService)
+	sessionsHandler, err := sessionsDelivery.NewSessionsHttpHandler(sessionManager, usersService, templatesFS)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -163,8 +173,7 @@ func main() {
 
 	router.HandleFunc(webhookURL+"{id}", submissionsHandler.Webhook).Methods("POST")
 
-	staticFs := http.FileServer(http.Dir("./web/static"))
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", staticFs))
+	router.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticFS)))
 
 	uploadsFs := http.FileServer(http.Dir("./uploads"))
 	router.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", uploadsFs))

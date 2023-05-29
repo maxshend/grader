@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"fmt"
+	"io/fs"
 	"net/http"
 	"strconv"
 	"strings"
@@ -38,32 +39,33 @@ func NewAssignmentsHttpHandler(
 	service services.AssignmentsServiceInterface,
 	sessionManager sessions.HttpSessionManager,
 	ubmissionsService submissionsServices.SubmissionsServiceInterface,
+	templatesFS fs.FS,
 ) (*AssignmentsHttpHandler, error) {
 	views := make(map[string]*utils.View)
 	var err error
 
-	views["GetAll"], err = utils.NewView("./web/templates/assignments/admin/list.gohtml")
+	views["GetAll"], err = utils.NewView(templatesFS, "templates/assignments/admin/list.gohtml")
 	if err != nil {
 		return nil, err
 	}
-	views["AssignmentForm"], err = utils.NewView("./web/templates/assignments/admin/assignment_form.gohtml")
+	views["AssignmentForm"], err = utils.NewView(templatesFS, "templates/assignments/admin/assignment_form.gohtml")
 	if err != nil {
 		return nil, err
 	}
-	views["Show"], err = utils.NewView("./web/templates/assignments/admin/assignment.gohtml")
+	views["Show"], err = utils.NewView(templatesFS, "templates/assignments/admin/assignment.gohtml")
 	if err != nil {
 		return nil, err
 	}
 
-	views["GetAllPersonal"], err = utils.NewView("./web/templates/assignments/list.gohtml")
+	views["GetAllPersonal"], err = utils.NewView(templatesFS, "templates/assignments/list.gohtml")
 	if err != nil {
 		return nil, err
 	}
-	views["NewSubmission"], err = utils.NewView("./web/templates/assignments/new_submission.gohtml")
+	views["NewSubmission"], err = utils.NewView(templatesFS, "templates/assignments/new_submission.gohtml")
 	if err != nil {
 		return nil, err
 	}
-	views["ShowPersonal"], err = utils.NewView("./web/templates/assignments/assignment.gohtml")
+	views["ShowPersonal"], err = utils.NewView(templatesFS, "templates/assignments/assignment.gohtml")
 	if err != nil {
 		return nil, err
 	}

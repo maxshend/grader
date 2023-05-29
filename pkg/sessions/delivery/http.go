@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"io/fs"
 	"net/http"
 
 	"github.com/maxshend/grader/pkg/sessions"
@@ -27,11 +28,12 @@ const (
 func NewSessionsHttpHandler(
 	sessionManager sessions.HttpSessionManager,
 	usersService services.UsersServiceInterface,
+	templatesFS fs.FS,
 ) (*SessionsHttpHandler, error) {
 	views := make(map[string]*utils.View)
 	var err error
 
-	views["Signin"], err = utils.NewView("./web/templates/sessions/signin.gohtml")
+	views["Signin"], err = utils.NewView(templatesFS, "templates/sessions/signin.gohtml")
 	if err != nil {
 		return nil, err
 	}

@@ -2,8 +2,8 @@ package utils
 
 import (
 	"html/template"
+	"io/fs"
 	"net/http"
-	"path/filepath"
 
 	"github.com/maxshend/grader/pkg/submissions"
 	"github.com/maxshend/grader/pkg/users"
@@ -14,8 +14,8 @@ type View struct {
 	Layout   string
 }
 
-func NewView(files ...string) (*View, error) {
-	layouts, err := layoutFiles()
+func NewView(templatesFS fs.FS, files ...string) (*View, error) {
+	layouts, err := layoutFiles(templatesFS)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func NewView(files ...string) (*View, error) {
 				return "Unknown"
 			},
 		},
-	).ParseFiles(files...)
+	).ParseFS(templatesFS, files...)
 	if err != nil {
 		panic(err)
 	}
@@ -59,8 +59,8 @@ func (v *View) RenderView(w http.ResponseWriter, data interface{}, currentUser *
 	).ExecuteTemplate(w, "main", data)
 }
 
-func layoutFiles() ([]string, error) {
-	files, err := filepath.Glob("./web/templates/layouts/*.gohtml")
+func layoutFiles(templatesFS fs.FS) ([]string, error) {
+	files, err := fs.Glob(templatesFS, "templates/layouts/*.gohtml")
 	if err != nil {
 		return nil, err
 	}

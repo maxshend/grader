@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"io/fs"
 	"net/http"
 
 	sessions "github.com/maxshend/grader/pkg/sessions"
@@ -23,11 +24,12 @@ type signupData struct {
 func NewUsersHttpHandler(
 	service services.UsersServiceInterface,
 	sessionManager sessions.HttpSessionManager,
+	templatesFS fs.FS,
 ) (*UsersHttpHandler, error) {
 	views := make(map[string]*utils.View)
 	var err error
 
-	views["Signup"], err = utils.NewView("./web/templates/users/signup.gohtml")
+	views["Signup"], err = utils.NewView(templatesFS, "templates/users/signup.gohtml")
 	if err != nil {
 		return nil, err
 	}
