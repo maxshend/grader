@@ -39,6 +39,16 @@ func NewView(templatesFS fs.FS, files ...string) (*View, error) {
 
 				return "Unknown"
 			},
+			"userProvider": func(provider int) string {
+				switch provider {
+				case users.DefaultProvider:
+					return "Username"
+				case users.VkProvider:
+					return "VK"
+				}
+
+				return "Unknown"
+			},
 		},
 	).ParseFS(templatesFS, files...)
 	if err != nil {

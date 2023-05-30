@@ -8,12 +8,20 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/maxshend/grader/pkg/users"
 	"github.com/maxshend/grader/pkg/utils"
+	"golang.org/x/oauth2"
 )
 
 type Session struct {
 	ID     int64
 	UserID int64
 	Token  string
+}
+
+type OauthCred struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
+	AuthURL      string
 }
 
 type RepositoryInterface interface {
@@ -28,6 +36,7 @@ type HttpSessionManager interface {
 	CurrentUser(*http.Request) (*users.User, error)
 	CurrentSession(*http.Request) (*Session, error)
 	Destroy(http.ResponseWriter, *http.Request) error
+	CreateOauthToken(r *http.Request, code string, cred *OauthCred) (*oauth2.Token, error)
 }
 
 type ctxKey int

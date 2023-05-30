@@ -5,6 +5,7 @@ CREATE TABLE users (
   password VARCHAR NOT NULL,
   role SMALLINT NOT NULL DEFAULT 0,
   is_admin BOOLEAN NOT NULL DEFAULT false,
+  provider SMALLINT NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT users_username_unique UNIQUE (username)
 );

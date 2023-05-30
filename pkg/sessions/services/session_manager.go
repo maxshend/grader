@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/maxshend/grader/pkg/sessions"
 	"github.com/maxshend/grader/pkg/users"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/vk"
 )
 
 type HttpSession struct {
@@ -94,4 +96,20 @@ func (sm *HttpSession) Destroy(w http.ResponseWriter, r *http.Request) error {
 	http.SetCookie(w, &cookie)
 
 	return nil
+}
+
+func (sm *HttpSession) CreateOauthToken(r *http.Request, code string, cred *sessions.OauthCred) (*oauth2.Token, error) {
+	conf := oauth2.Config{
+		ClientID:     cred.ClientID,
+		ClientSecret: cred.ClientSecret,
+		RedirectURL:  cred.RedirectURL,
+		Endpoint:     vk.Endpoint,
+	}
+
+	token, err := conf.Exchange(r.Context(), code)
+	if err != nil {
+		return nil, err
+	}
+
+	return token, nil
 }

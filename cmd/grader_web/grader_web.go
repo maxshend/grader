@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"embed"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -41,6 +42,8 @@ var staticFS embed.FS
 //go:embed all:templates/*
 var templatesFS embed.FS
 
+const oauthVkPath = "/sessions/oauth/vk"
+
 func main() {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if len(jwtSecret) == 0 {
@@ -49,6 +52,10 @@ func main() {
 	hostURL := os.Getenv("HOST")
 	if len(hostURL) == 0 {
 		log.Fatal("HOST should be set")
+	}
+	externalHostURL := os.Getenv("EXTERNAL_HOST")
+	if len(externalHostURL) == 0 {
+		log.Fatal("EXTERNAL_HOST should be set")
 	}
 	dbURL := os.Getenv("DATABASE_URL")
 	if len(dbURL) == 0 {
@@ -134,7 +141,25 @@ func main() {
 		log.Fatal(err)
 	}
 	submissionsHandler := submissionsDelivery.NewSubmissionsHttpHandler(submissionsService)
-	sessionsHandler, err := sessionsDelivery.NewSessionsHttpHandler(sessionManager, usersService, templatesFS)
+
+	oauthCreds := map[string]*sessions.OauthCred{
+		"vk": {
+			ClientID:     os.Getenv("OAUTH_VK_APP_ID"),
+			ClientSecret: os.Getenv("OAUTH_VK_APP_KEY"),
+			RedirectURL:  externalHostURL + oauthVkPath,
+			AuthURL: fmt.Sprintf(
+				"https://oauth.vk.com/authorize?client_id=%s&redirect_uri=%s&response_type=code&scope=email",
+				os.Getenv("OAUTH_VK_APP_ID"),
+				externalHostURL+oauthVkPath,
+			),
+		},
+	}
+	sessionsHandler, err := sessionsDelivery.NewSessionsHttpHandler(
+		sessionManager,
+		usersService,
+		templatesFS,
+		oauthCreds,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -158,6 +183,7 @@ func main() {
 
 	router.HandleFunc("/signin", sessionsHandler.New).Methods("GET")
 	router.HandleFunc("/sessions", sessionsHandler.Create).Methods("POST")
+	router.HandleFunc(oauthVkPath, sessionsHandler.OauthVK).Methods("GET")
 
 	authPages := router.NewRoute().Subrouter()
 

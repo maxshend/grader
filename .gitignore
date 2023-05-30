@@ -3,3 +3,5 @@ bin/
 *.test
 tmp/
 uploads/
+.env*
+!.env.example
