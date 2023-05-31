@@ -76,7 +76,6 @@ func (h UsersHttpHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Remove user if cannot create session
 	_, err = h.SessionManager.Create(w, user)
 	if err != nil {
 		utils.RenderInternalError(w, r, err)

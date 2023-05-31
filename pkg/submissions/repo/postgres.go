@@ -5,6 +5,7 @@ import (
 
 	"github.com/lib/pq"
 	"github.com/maxshend/grader/pkg/attachments"
+	"github.com/maxshend/grader/pkg/repo"
 	"github.com/maxshend/grader/pkg/submissions"
 )
 
@@ -16,13 +17,13 @@ func NewSubmissionsSQLRepo(db *sql.DB) *SubmissionsSQLRepo {
 	return &SubmissionsSQLRepo{DB: db}
 }
 
-func (r *SubmissionsSQLRepo) Create(userID int64, assignmentID int64) (*submissions.Submission, error) {
+func (r *SubmissionsSQLRepo) Create(sqlExec repo.SqlQueryable, userID int64, assignmentID int64) (*submissions.Submission, error) {
 	submission := &submissions.Submission{
 		UserID:       userID,
 		AssignmentID: assignmentID,
 		Status:       submissions.InProgress,
 	}
-	err := r.DB.QueryRow(
+	err := sqlExec.QueryRow(
 		"INSERT INTO submissions (user_id, assignment_id, status) VALUES ($1, $2, $3) RETURNING id",
 		userID,
 		assignmentID,
@@ -59,54 +60,36 @@ func (r *SubmissionsSQLRepo) GetSubmissionAttachments(submissionID int64) ([]*su
 }
 
 func (r *SubmissionsSQLRepo) CreateSubmissionAttachments(
+	sqlExec repo.SqlQueryable,
 	submissionID int64,
 	attachments []*attachments.Attachment,
 ) ([]*submissions.Attachment, error) {
-	err := r.insertMultipleAttachments(submissionID, attachments)
+	stm, err := sqlExec.Prepare(pq.CopyIn("submission_attachments", "url", "name", "submission_id"))
 	if err != nil {
 		return nil, err
 	}
-
-	return r.GetSubmissionAttachments(submissionID)
-}
-
-func (r *SubmissionsSQLRepo) insertMultipleAttachments(submissionID int64, attachments []*attachments.Attachment) (err error) {
-	txn, err := r.DB.Begin()
-	if err != nil {
-		return
-	}
-	defer func() {
-		if err != nil {
-			rollbackErr := txn.Rollback()
-			if rollbackErr != nil {
-				err = rollbackErr
-			}
-
-			return
-		}
-
-		err = txn.Commit()
-	}()
-
-	stm, err := txn.Prepare(pq.CopyIn("submission_attachments", "url", "name", "submission_id"))
-	if err != nil {
-		return
-	}
 	defer stm.Close()
+
+	submissionAttachments := []*submissions.Attachment{}
 
 	for _, attachment := range attachments {
 		_, err = stm.Exec(attachment.URL, attachment.Name, submissionID)
 		if err != nil {
-			return
+			return nil, err
 		}
+
+		submissionAttachments = append(
+			submissionAttachments,
+			&submissions.Attachment{URL: attachment.URL, Name: attachment.Name},
+		)
 	}
 
 	_, err = stm.Exec()
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	return
+	return submissionAttachments, nil
 }
 
 func (r *SubmissionsSQLRepo) GetByID(id int64) (*submissions.Submission, error) {
@@ -222,4 +205,8 @@ func (r *SubmissionsSQLRepo) GetByAssignment(
 	}
 
 	return result, nil
+}
+
+func (r *SubmissionsSQLRepo) CreateTxn() (*sql.Tx, error) {
+	return r.DB.Begin()
 }

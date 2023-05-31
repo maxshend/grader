@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -96,31 +97,59 @@ func (s *AssignmentsService) GetByUserID(userID int64) ([]*assignments.Assignmen
 	return s.Repo.GetByUserID(userID, 100, 0)
 }
 
-func (s *AssignmentsService) Submit(user *users.User, assignment *assignments.Assignment, files []*SubmissionFile) (*submissions.Submission, error) {
-	err := checkSubmissionFiles(assignment.Files, files)
+func (s *AssignmentsService) Submit(
+	user *users.User,
+	assignment *assignments.Assignment,
+	files []*SubmissionFile,
+) (submission *submissions.Submission, err error) {
+	err = checkSubmissionFiles(assignment.Files, files)
 	if err != nil {
 		return nil, err
 	}
+	newAttachments := []*attachments.Attachment{}
 
-	submission, err := s.SubmissionsRepo.Create(user.ID, assignment.ID)
+	txn, err := s.SubmissionsRepo.CreateTxn()
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Remove submission from DB in case of errors
+	defer func(newAttachments []*attachments.Attachment) {
+		p := recover()
+
+		rollbackErr := txn.Rollback()
+		if rollbackErr != nil {
+			log.Printf("Error while reverting db changes: %v", rollbackErr)
+		}
+
+		for _, att := range newAttachments {
+			attErr := s.AttachRepo.Destroy(att.URL)
+			if attErr != nil {
+				log.Printf("Error while reverting attachment creation: %v", err)
+			}
+		}
+
+		if p != nil {
+			panic(p)
+		}
+	}(newAttachments)
+
+	submission, err = s.SubmissionsRepo.Create(txn, user.ID, assignment.ID)
+	if err != nil {
+		return nil, err
+	}
 
 	pathPrefix := fmt.Sprintf("submissions/%d", submission.ID)
-	attachments := []*attachments.Attachment{}
 	for _, file := range files {
 		attachment, err := s.AttachRepo.Create(pathPrefix, file.Name, file.Content)
 		if err != nil {
 			return nil, err
 		}
-		attachments = append(attachments, attachment)
+		newAttachments = append(newAttachments, attachment)
 	}
 
 	submissionAttachments, err := s.SubmissionsRepo.CreateSubmissionAttachments(
+		txn,
 		submission.ID,
-		attachments,
+		newAttachments,
 	)
 	if err != nil {
 		return nil, err
@@ -145,6 +174,11 @@ func (s *AssignmentsService) Submit(user *users.User, assignment *assignments.As
 		return nil, err
 	}
 
+	err = txn.Commit()
+	if err != nil {
+		return
+	}
+
 	err = s.QueueCh.PublishWithContext(
 		context.Background(),
 		"",
@@ -161,7 +195,7 @@ func (s *AssignmentsService) Submit(user *users.User, assignment *assignments.As
 		return nil, err
 	}
 
-	return submission, nil
+	return
 }
 
 func (s *AssignmentsService) Create(assignment *assignments.Assignment) (*assignments.Assignment, error) {

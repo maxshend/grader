@@ -2,6 +2,7 @@ package repo
 
 import (
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sync"
@@ -41,4 +42,13 @@ func (r *AttachmentsInmemRepo) Create(pathPrefix, name string, content io.Reader
 	attachment := &attachments.Attachment{Name: name, Content: content, URL: r.Host + fullpath}
 
 	return attachment, nil
+}
+
+func (r *AttachmentsInmemRepo) Destroy(path string) error {
+	u, err := url.ParseRequestURI(path)
+	if err != nil {
+		return err
+	}
+
+	return os.Remove(u.Path[1:])
 }

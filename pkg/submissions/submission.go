@@ -1,9 +1,11 @@
 package submissions
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/maxshend/grader/pkg/attachments"
+	"github.com/maxshend/grader/pkg/repo"
 )
 
 const (
@@ -30,8 +32,9 @@ type Attachment struct {
 }
 
 type RepositoryInterface interface {
-	Create(userID int64, assignmentID int64) (*Submission, error)
-	CreateSubmissionAttachments(int64, []*attachments.Attachment) ([]*Attachment, error)
+	CreateTxn() (*sql.Tx, error)
+	Create(sqlExec repo.SqlQueryable, userID int64, assignmentID int64) (*Submission, error)
+	CreateSubmissionAttachments(repo.SqlQueryable, int64, []*attachments.Attachment) ([]*Attachment, error)
 	GetSubmissionAttachments(int64) ([]*Attachment, error)
 	GetByID(int64) (*Submission, error)
 	Update(*Submission) error
