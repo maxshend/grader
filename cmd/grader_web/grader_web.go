@@ -173,6 +173,9 @@ func main() {
 	adminPages.HandleFunc("/assignments/{id}/edit", assignmentsHandler.Edit).Methods("GET")
 	adminPages.HandleFunc("/assignments/{id}", assignmentsHandler.Update).Methods("POST")
 	adminPages.HandleFunc("/assignments/{id}", assignmentsHandler.Show).Methods("GET")
+	adminPages.HandleFunc("/users", usersHandler.GetAll).Methods("GET")
+	adminPages.HandleFunc("/users/{id}/edit", usersHandler.Edit).Methods("GET")
+	adminPages.HandleFunc("/users/{id}", usersHandler.Update).Methods("POST")
 	adminPages.Use(
 		sessions.AuthMiddleware(sessionManager, userRepo),
 		sessions.AdminPolicyMiddleware(sessionManager),

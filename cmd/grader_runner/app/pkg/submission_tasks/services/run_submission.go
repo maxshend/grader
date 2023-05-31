@@ -167,12 +167,17 @@ func tmpSaveAttachments(task *submission_tasks.SubmissionTask) (dir string, rmDi
 		return os.RemoveAll(dir)
 	}
 	defer func() {
-		if err != nil {
-			rmErr := rmDir()
+		p := recover()
 
+		if p != nil || err != nil {
+			rmErr := rmDir()
 			if rmErr != nil {
-				err = rmErr
+				log.Printf("Error while removing dir: %v", rmErr)
 			}
+		}
+
+		if p != nil {
+			panic(p)
 		}
 	}()
 

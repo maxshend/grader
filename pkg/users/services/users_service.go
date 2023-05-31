@@ -17,8 +17,10 @@ type UsersServiceInterface interface {
 	Create(username, password, password_confirmation string) (*users.User, error)
 	CreateOauth(token *oauth2.Token, provider int) (*users.User, error)
 	GetByID(int64) (*users.User, error)
+	GetAll() ([]*users.User, error)
 	GetByUsername(string) (*users.User, error)
 	CheckCredentials(username, password string) (*users.User, error)
+	Update(*users.User) (*users.User, error)
 }
 
 func NewUsersService(repo users.RepositoryInterface) UsersServiceInterface {
@@ -35,6 +37,11 @@ const (
 var (
 	MsgInvalidUserCredentials = "Invalid email or password"
 )
+
+func (s *UsersService) GetAll() ([]*users.User, error) {
+	// TODO: Pagination handling
+	return s.Repo.GetAll(100, 0)
+}
 
 func (s *UsersService) Create(username, password, password_confirmation string) (user *users.User, err error) {
 	return s.create(username, password, password_confirmation, users.DefaultProvider)
@@ -97,6 +104,10 @@ func (s *UsersService) CheckCredentials(username, password string) (*users.User,
 	return foundUser, nil
 }
 
+func (s *UsersService) Update(user *users.User) (*users.User, error) {
+	return s.Repo.Update(user)
+}
+
 func (s *UsersService) create(username, password, password_confirmation string, provider int) (user *users.User, err error) {
 	user = &users.User{Username: username}
 
@@ -130,5 +141,5 @@ func (s *UsersService) create(username, password, password_confirmation string, 
 		return nil, err
 	}
 
-	return s.Repo.Create(username, string(hash), provider, users.RegularUser)
+	return s.Repo.Create(username, string(hash), provider, false)
 }

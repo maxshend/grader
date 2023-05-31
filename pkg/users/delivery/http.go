@@ -2,8 +2,11 @@ package delivery
 
 import (
 	"io/fs"
+	"log"
 	"net/http"
+	"strconv"
 
+	"github.com/gorilla/mux"
 	sessions "github.com/maxshend/grader/pkg/sessions"
 	"github.com/maxshend/grader/pkg/users"
 	"github.com/maxshend/grader/pkg/users/services"
@@ -16,7 +19,7 @@ type UsersHttpHandler struct {
 	Views          map[string]*utils.View
 }
 
-type signupData struct {
+type userFormData struct {
 	User   *users.User
 	Errors []string
 }
@@ -34,6 +37,16 @@ func NewUsersHttpHandler(
 		return nil, err
 	}
 
+	views["GetAll"], err = utils.NewView(templatesFS, "templates/users/admin/list.gohtml")
+	if err != nil {
+		return nil, err
+	}
+
+	views["UserForm"], err = utils.NewView(templatesFS, "templates/users/admin/user_form.gohtml")
+	if err != nil {
+		return nil, err
+	}
+
 	return &UsersHttpHandler{
 		Service:        service,
 		Views:          views,
@@ -41,10 +54,103 @@ func NewUsersHttpHandler(
 	}, nil
 }
 
+func (h UsersHttpHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	result, err := h.Service.GetAll()
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+		return
+	}
+
+	err = h.Views["GetAll"].RenderView(
+		w,
+		&struct{ Users []*users.User }{result},
+		currentUser,
+	)
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+	}
+}
+
+func (h UsersHttpHandler) Edit(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	params := mux.Vars(r)
+	user, err := h.Service.GetByID(userID(params["id"]))
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+		return
+	}
+	if user == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	err = h.Views["UserForm"].RenderView(
+		w,
+		&userFormData{User: user},
+		currentUser,
+	)
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+	}
+}
+
+func (h UsersHttpHandler) Update(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	params := mux.Vars(r)
+	user, err := h.Service.GetByID(userID(params["id"]))
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+		return
+	}
+	if user == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	log.Println(r.FormValue("is_admin"))
+	user.IsAdmin = utils.BoolFromParam(r.FormValue("is_admin"))
+
+	_, err = h.Service.Update(user)
+	if err != nil {
+		if _, ok := err.(*services.UserValidationError); ok {
+			err = h.Views["AssignmentForm"].RenderView(
+				w,
+				userFormData{
+					User:   user,
+					Errors: []string{err.Error()},
+				},
+				currentUser,
+			)
+			if err != nil {
+				utils.RenderInternalError(w, r, err)
+			}
+		} else {
+			utils.RenderInternalError(w, r, err)
+		}
+	}
+
+	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+}
+
 func (h UsersHttpHandler) New(w http.ResponseWriter, r *http.Request) {
 	err := h.Views["Signup"].RenderView(
 		w,
-		&signupData{User: &users.User{}},
+		&userFormData{User: &users.User{}},
 		nil,
 	)
 	if err != nil {
@@ -63,7 +169,7 @@ func (h UsersHttpHandler) Create(w http.ResponseWriter, r *http.Request) {
 		if _, ok := err.(*services.UserValidationError); ok {
 			err := h.Views["Signup"].RenderView(
 				w,
-				&signupData{User: user, Errors: []string{err.Error()}},
+				&userFormData{User: user, Errors: []string{err.Error()}},
 				nil,
 			)
 			if err != nil {
@@ -82,4 +188,10 @@ func (h UsersHttpHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/assignments", http.StatusSeeOther)
+}
+
+func userID(param string) int64 {
+	id, _ := strconv.ParseInt(param, 10, 64)
+
+	return id
 }
