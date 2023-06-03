@@ -39,5 +39,6 @@ type RepositoryInterface interface {
 	GetByID(int64) (*Submission, error)
 	Update(*Submission) error
 	GetByUserAssignment(assignmentID int64, userID int64, limit, offset int) ([]*Submission, error)
+	GetByUserAssignmentCount(assignmentID int64, userID int64) (int, error)
 	GetByAssignment(assignmentID int64, limit, offset int) ([]*Submission, error)
 }

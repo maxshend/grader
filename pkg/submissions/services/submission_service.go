@@ -13,11 +13,16 @@ type SubmissionsService struct {
 	JwtSecret string
 }
 
+const DefaultPageSize = 25
+
 type SubmissionsServiceInterface interface {
 	HandleWebhook(token string, submissionID int64, pass bool, text string) error
 	GetByID(int64) (*submissions.Submission, error)
 	Update(*submissions.Submission) error
-	GetByUserAssignment(assignmentID, userID int64) ([]*submissions.Submission, error)
+	GetByUserAssignment(
+		assignmentID, userID int64,
+		page int,
+	) ([]*submissions.Submission, *utils.PaginationData, error)
 	GetByAssignment(assignmentID int64) ([]*submissions.Submission, error)
 }
 
@@ -68,9 +73,37 @@ func (s *SubmissionsService) Update(submission *submissions.Submission) error {
 	return s.Repo.Update(submission)
 }
 
-func (s *SubmissionsService) GetByUserAssignment(assignmentID, userID int64) ([]*submissions.Submission, error) {
-	// TODO: Pagination handling
-	return s.Repo.GetByUserAssignment(assignmentID, userID, 100, 0)
+func (s *SubmissionsService) GetByUserAssignment(
+	assignmentID, userID int64,
+	page int,
+) ([]*submissions.Submission, *utils.PaginationData, error) {
+	if page <= 0 {
+		page = 1
+	}
+
+	totalCount, err := s.Repo.GetByUserAssignmentCount(assignmentID, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+	maxPage := utils.GetMaxPage(DefaultPageSize, totalCount)
+	if page > maxPage {
+		page = maxPage
+	}
+	offset := utils.GetPageOffset(page, DefaultPageSize)
+	paginationData := &utils.PaginationData{
+		CurrentPage: page,
+		MaxPage:     maxPage,
+		PrevPage:    page - 1,
+		NextPage:    page + 1,
+		LastPage:    page == maxPage,
+		FirstPage:   page == 1,
+	}
+	assignments, err := s.Repo.GetByUserAssignment(assignmentID, userID, DefaultPageSize, offset)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return assignments, paginationData, nil
 }
 
 func (s *SubmissionsService) GetByAssignment(assignmentID int64) ([]*submissions.Submission, error) {

@@ -22,4 +22,26 @@
     {{end}}
   </tbody>
 </table>
+
+{{if not (eq .PaginationData.MaxPage 1)}}
+<nav>
+  {{$prevClass := ""}}
+  {{if .PaginationData.FirstPage}}
+    {{$prevClass = "disabled"}}
+  {{end}}
+  {{$nextClass := ""}}
+  {{if .PaginationData.LastPage}}
+    {{$nextClass = "disabled"}}
+  {{end}}
+
+  <ul class="pagination justify-content-center">
+    <li class="page-item">
+      <a class="page-link {{$prevClass}}" href="/assignments/{{.Assignment.ID}}?page={{.PaginationData.PrevPage}}">Previous</a>
+    </li>
+    <li class="page-item">
+      <a class="page-link {{$nextClass}}" href="/assignments/{{.Assignment.ID}}?page={{.PaginationData.NextPage}}">Next</a>
+    </li>
+  </ul>
+</nav>
+{{end}}
 {{end}}

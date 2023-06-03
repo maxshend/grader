@@ -221,7 +221,13 @@ func (h AssignmentsHttpHandler) ShowPersonal(w http.ResponseWriter, r *http.Requ
 		http.NotFound(w, r)
 		return
 	}
-	submissionsList, err := h.SubmissionsService.GetByUserAssignment(assignment.ID, currentUser.ID)
+
+	page := utils.GetPageNumber(r)
+	submissionsList, paginationData, err := h.SubmissionsService.GetByUserAssignment(
+		assignment.ID,
+		currentUser.ID,
+		page,
+	)
 	if err != nil {
 		utils.RenderInternalError(w, r, err)
 		return
@@ -230,9 +236,10 @@ func (h AssignmentsHttpHandler) ShowPersonal(w http.ResponseWriter, r *http.Requ
 	err = h.Views["ShowPersonal"].RenderView(
 		w,
 		&struct {
-			Assignment  *assignments.Assignment
-			Submissions []*submissions.Submission
-		}{assignment, submissionsList},
+			Assignment     *assignments.Assignment
+			Submissions    []*submissions.Submission
+			PaginationData *utils.PaginationData
+		}{assignment, submissionsList, paginationData},
 		currentUser,
 	)
 	if err != nil {

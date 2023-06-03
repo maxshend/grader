@@ -128,6 +128,19 @@ func (r *SubmissionsSQLRepo) Update(submission *submissions.Submission) error {
 	return nil
 }
 
+func (r *SubmissionsSQLRepo) GetByUserAssignmentCount(assignmentID int64, userID int64) (count int, err error) {
+	err = r.DB.QueryRow(
+		"SELECT COUNT(*) "+
+			"FROM submissions WHERE user_id = $1 AND assignment_id = $2",
+		userID, assignmentID,
+	).Scan(&count)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 func (r *SubmissionsSQLRepo) GetByUserAssignment(
 	assignmentID int64,
 	userID int64,
