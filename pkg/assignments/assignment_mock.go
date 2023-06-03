@@ -34,33 +34,33 @@ func (m *MockRepositoryInterface) EXPECT() *MockRepositoryInterfaceMockRecorder 
 }
 
 // Create mocks base method.
-func (m *MockRepositoryInterface) Create(title, description, graderURL, container, partID string, files []string) (*Assignment, error) {
+func (m *MockRepositoryInterface) Create(creatorID int64, title, description, graderURL, container, partID string, files []string) (*Assignment, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", title, description, graderURL, container, partID, files)
+	ret := m.ctrl.Call(m, "Create", creatorID, title, description, graderURL, container, partID, files)
 	ret0, _ := ret[0].(*Assignment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockRepositoryInterfaceMockRecorder) Create(title, description, graderURL, container, partID, files interface{}) *gomock.Call {
+func (mr *MockRepositoryInterfaceMockRecorder) Create(creatorID, title, description, graderURL, container, partID, files interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockRepositoryInterface)(nil).Create), title, description, graderURL, container, partID, files)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockRepositoryInterface)(nil).Create), creatorID, title, description, graderURL, container, partID, files)
 }
 
-// GetAll mocks base method.
-func (m *MockRepositoryInterface) GetAll(limit, offset int) ([]*Assignment, error) {
+// GetAllByCreator mocks base method.
+func (m *MockRepositoryInterface) GetAllByCreator(creatorID int64, limit, offset int) ([]*Assignment, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAll", limit, offset)
+	ret := m.ctrl.Call(m, "GetAllByCreator", creatorID, limit, offset)
 	ret0, _ := ret[0].([]*Assignment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetAll indicates an expected call of GetAll.
-func (mr *MockRepositoryInterfaceMockRecorder) GetAll(limit, offset interface{}) *gomock.Call {
+// GetAllByCreator indicates an expected call of GetAllByCreator.
+func (mr *MockRepositoryInterfaceMockRecorder) GetAllByCreator(creatorID, limit, offset interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockRepositoryInterface)(nil).GetAll), limit, offset)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllByCreator", reflect.TypeOf((*MockRepositoryInterface)(nil).GetAllByCreator), creatorID, limit, offset)
 }
 
 // GetByID mocks base method.
@@ -76,6 +76,21 @@ func (m *MockRepositoryInterface) GetByID(arg0 int64) (*Assignment, error) {
 func (mr *MockRepositoryInterfaceMockRecorder) GetByID(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockRepositoryInterface)(nil).GetByID), arg0)
+}
+
+// GetByIDByCreator mocks base method.
+func (m *MockRepositoryInterface) GetByIDByCreator(id, creatorID int64) (*Assignment, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByIDByCreator", id, creatorID)
+	ret0, _ := ret[0].(*Assignment)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByIDByCreator indicates an expected call of GetByIDByCreator.
+func (mr *MockRepositoryInterfaceMockRecorder) GetByIDByCreator(id, creatorID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByIDByCreator", reflect.TypeOf((*MockRepositoryInterface)(nil).GetByIDByCreator), id, creatorID)
 }
 
 // GetByTitle mocks base method.

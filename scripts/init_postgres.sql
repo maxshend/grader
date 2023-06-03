@@ -21,6 +21,7 @@ CREATE TABLE sessions (
 DROP TABLE IF EXISTS assignments;
 CREATE TABLE assignments (
   id SERIAL PRIMARY KEY,
+  creator_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
   title VARCHAR(255) NOT NULL UNIQUE,
   description VARCHAR NOT NULL,
   grader_url VARCHAR(255) NOT NULL,

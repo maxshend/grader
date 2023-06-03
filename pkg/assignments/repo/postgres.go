@@ -15,11 +15,12 @@ func NewAssignmentsSQLRepo(db *sql.DB) *AssignmentsSQLRepo {
 	return &AssignmentsSQLRepo{DB: db}
 }
 
-func (r *AssignmentsSQLRepo) GetAll(limit int, offset int) ([]*assignments.Assignment, error) {
+func (r *AssignmentsSQLRepo) GetAllByCreator(creatorID int64, limit int, offset int) ([]*assignments.Assignment, error) {
 	rows, err := r.DB.Query(
 		"SELECT id, title, grader_url "+
-			"FROM assignments ORDER BY id DESC LIMIT $1 OFFSET $2",
-		limit, offset,
+			"FROM assignments WHERE (creator_id = $3 OR creator_id IS NULL) "+
+			"ORDER BY id DESC LIMIT $1 OFFSET $2",
+		limit, offset, creatorID,
 	)
 	if err != nil {
 		return nil, err
@@ -48,12 +49,36 @@ func (r *AssignmentsSQLRepo) GetAll(limit int, offset int) ([]*assignments.Assig
 func (r *AssignmentsSQLRepo) GetByID(id int64) (*assignments.Assignment, error) {
 	assignment := &assignments.Assignment{}
 	err := r.DB.QueryRow(
-		"SELECT id, title, description, grader_url, container, part_id, files "+
+		"SELECT id, title, description, grader_url, container, part_id, files, creator_id "+
 			"FROM assignments WHERE id = $1 LIMIT 1",
 		id,
 	).Scan(
 		&assignment.ID, &assignment.Title, &assignment.Description,
 		&assignment.GraderURL, &assignment.Container, &assignment.PartID, pq.Array(&assignment.Files),
+		&assignment.CreatorID,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	return assignment, nil
+}
+
+func (r *AssignmentsSQLRepo) GetByIDByCreator(id int64, creatorID int64) (*assignments.Assignment, error) {
+	assignment := &assignments.Assignment{}
+	err := r.DB.QueryRow(
+		"SELECT id, title, description, grader_url, container, part_id, files, creator_id "+
+			"FROM assignments WHERE id = $1 AND (creator_id = $2 OR creator_id IS NULL) LIMIT 1",
+		id, creatorID,
+	).Scan(
+		&assignment.ID, &assignment.Title, &assignment.Description,
+		&assignment.GraderURL, &assignment.Container, &assignment.PartID, pq.Array(&assignment.Files),
+		&assignment.CreatorID,
 	)
 
 	if err != nil {
@@ -100,10 +125,12 @@ func (r *AssignmentsSQLRepo) GetByUserID(userID int64, limit, offset int) ([]*as
 }
 
 func (r *AssignmentsSQLRepo) Create(
+	creatorID int64,
 	title, description, graderURL,
 	container, partID string, files []string,
 ) (*assignments.Assignment, error) {
 	assignment := &assignments.Assignment{
+		CreatorID:   creatorID,
 		Title:       title,
 		Description: description,
 		GraderURL:   graderURL,
@@ -113,9 +140,9 @@ func (r *AssignmentsSQLRepo) Create(
 	}
 
 	err := r.DB.QueryRow(
-		"INSERT INTO assignments (title, description, grader_url, container, part_id, files) "+
-			"VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-		title, description, graderURL, container, partID, pq.Array(files),
+		"INSERT INTO assignments (title, description, grader_url, container, part_id, files, creator_id) "+
+			"VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+		title, description, graderURL, container, partID, pq.Array(files), creatorID,
 	).Scan(&assignment.ID)
 	if err != nil {
 		return nil, err
@@ -141,12 +168,13 @@ func (r *AssignmentsSQLRepo) Update(assignment *assignments.Assignment) (*assign
 func (r *AssignmentsSQLRepo) GetByTitle(title string) (*assignments.Assignment, error) {
 	assignment := &assignments.Assignment{}
 	err := r.DB.QueryRow(
-		"SELECT id, title, description, grader_url, container, part_id, files "+
+		"SELECT id, title, description, grader_url, container, part_id, files, creator_id "+
 			"FROM assignments WHERE title = $1 LIMIT 1",
 		title,
 	).Scan(
 		&assignment.ID, &assignment.Title, &assignment.Description,
 		&assignment.GraderURL, &assignment.Container, &assignment.PartID, pq.Array(&assignment.Files),
+		&assignment.CreatorID,
 	)
 
 	if err != nil {

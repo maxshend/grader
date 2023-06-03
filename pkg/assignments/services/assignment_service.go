@@ -55,8 +55,9 @@ const (
 )
 
 type AssignmentsServiceInterface interface {
-	GetAll() ([]*assignments.Assignment, error)
+	GetAll(*users.User) ([]*assignments.Assignment, error)
 	GetByID(int64) (*assignments.Assignment, error)
+	GetByIDByCreator(int64, *users.User) (*assignments.Assignment, error)
 	GetByUserID(int64) ([]*assignments.Assignment, error)
 	Submit(*users.User, *assignments.Assignment, []*SubmissionFile) (*submissions.Submission, error)
 	Create(*assignments.Assignment) (*assignments.Assignment, error)
@@ -84,13 +85,17 @@ func NewAssignmentsService(
 	}
 }
 
-func (s *AssignmentsService) GetAll() ([]*assignments.Assignment, error) {
+func (s *AssignmentsService) GetAll(user *users.User) ([]*assignments.Assignment, error) {
 	// TODO: Pagination handling
-	return s.Repo.GetAll(100, 0)
+	return s.Repo.GetAllByCreator(user.ID, 100, 0)
 }
 
 func (s *AssignmentsService) GetByID(id int64) (*assignments.Assignment, error) {
 	return s.Repo.GetByID(id)
+}
+
+func (s *AssignmentsService) GetByIDByCreator(id int64, user *users.User) (*assignments.Assignment, error) {
+	return s.Repo.GetByIDByCreator(id, user.ID)
 }
 
 func (s *AssignmentsService) GetByUserID(userID int64) ([]*assignments.Assignment, error) {
@@ -217,6 +222,7 @@ func (s *AssignmentsService) Create(assignment *assignments.Assignment) (*assign
 	}
 
 	return s.Repo.Create(
+		assignment.CreatorID,
 		assignment.Title,
 		assignment.Description,
 		assignment.GraderURL,

@@ -84,7 +84,7 @@ func (h AssignmentsHttpHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-	result, err := h.Service.GetAll()
+	result, err := h.Service.GetAll(currentUser)
 	if err != nil {
 		utils.RenderInternalError(w, r, err)
 		return
@@ -268,6 +268,7 @@ func (h AssignmentsHttpHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	assignment := &assignments.Assignment{
+		CreatorID:   currentUser.ID,
 		Title:       r.FormValue("title"),
 		Description: r.FormValue("description"),
 		GraderURL:   r.FormValue("grader_url"),
@@ -309,7 +310,7 @@ func (h AssignmentsHttpHandler) Edit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := mux.Vars(r)
-	assignment, err := h.Service.GetByID(assignmentID(params["id"]))
+	assignment, err := h.Service.GetByIDByCreator(assignmentID(params["id"]), currentUser)
 	if err != nil {
 		utils.RenderInternalError(w, r, err)
 		return
@@ -341,7 +342,7 @@ func (h AssignmentsHttpHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := mux.Vars(r)
-	assignment, err := h.Service.GetByID(assignmentID(params["id"]))
+	assignment, err := h.Service.GetByIDByCreator(assignmentID(params["id"]), currentUser)
 	if err != nil {
 		utils.RenderInternalError(w, r, err)
 		return
@@ -390,7 +391,7 @@ func (h AssignmentsHttpHandler) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := mux.Vars(r)
-	assignment, err := h.Service.GetByID(assignmentID(params["id"]))
+	assignment, err := h.Service.GetByIDByCreator(assignmentID(params["id"]), currentUser)
 	if err != nil {
 		utils.RenderInternalError(w, r, err)
 		return

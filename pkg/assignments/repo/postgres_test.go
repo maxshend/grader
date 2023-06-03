@@ -19,7 +19,7 @@ func TestAssignmentsGetByID(t *testing.T) {
 
 	repo := NewAssignmentsSQLRepo(db)
 	sqlQuery := "SELECT id, title, description"
-	fields := []string{"id", "title", "description", "grader_url", "container", "part_id", "files"}
+	fields := []string{"id", "title", "description", "grader_url", "container", "part_id", "files", "creator_id"}
 	var assignmentID int64 = 1
 
 	type testCase struct {
@@ -42,7 +42,7 @@ func TestAssignmentsGetByID(t *testing.T) {
 				files := "{\"main.go\"}"
 				rows := sqlmock.NewRows(fields).AddRow(
 					tc.Want.ID, tc.Want.Title, tc.Want.Description, tc.Want.GraderURL,
-					tc.Want.Container, tc.Want.PartID, files,
+					tc.Want.Container, tc.Want.PartID, files, tc.Want.CreatorID,
 				)
 
 				expected.WithArgs(tc.Want.ID).WillReturnRows(rows)
