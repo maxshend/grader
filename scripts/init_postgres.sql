@@ -9,6 +9,13 @@ CREATE TABLE users (
   CONSTRAINT users_username_unique UNIQUE (username)
 );
 
+INSERT INTO users (username, password, is_admin)
+  VALUES (
+    'test',
+    '$2a$10$NGLziTcOA8pgYkSPCQfuI.CE3Na8ENW4jExyZlE29OtmqsPJrUZfy', -- password
+    true
+  );
+
 DROP TABLE IF EXISTS sessions;
 CREATE TABLE sessions (
   id SERIAL PRIMARY KEY,
@@ -34,12 +41,22 @@ CREATE TABLE assignments (
 
 INSERT INTO assignments (title, description, grader_url, container, part_id, files)
   VALUES (
-    'Grader #1',
+    'Grader Go #1',
     'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
     'http://runner:8021/api/v1/grader',
     'golangcourse_final',
-    'HW1_game',
-    '{"main.go", "lib.go"}'
+    'HW1_game_go',
+    '{"main.go"}'
+  );
+
+INSERT INTO assignments (title, description, grader_url, container, part_id, files)
+  VALUES (
+    'Grader Ruby #1',
+    'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+    'http://runner:8021/api/v1/grader',
+    'golangcourse_final',
+    'HW1_game_rb',
+    '{"main.rb"}'
   );
 
 DROP TABLE IF EXISTS submissions;

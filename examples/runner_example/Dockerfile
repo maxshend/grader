@@ -1,7 +1,7 @@
 FROM golang:1.19-alpine
 
 RUN apk update && apk upgrade && \
-    apk add --no-cache bash git openssh
+    apk add --no-cache bash git openssh ruby
 
 WORKDIR /app
 COPY ./go.mod ./go.sum ./

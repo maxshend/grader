@@ -48,6 +48,7 @@ func (r *AssignmentsSQLRepo) GetAllByCreator(creatorID int64, limit int, offset 
 
 func (r *AssignmentsSQLRepo) GetByID(id int64) (*assignments.Assignment, error) {
 	assignment := &assignments.Assignment{}
+	var creatorID sql.NullInt64
 	err := r.DB.QueryRow(
 		"SELECT id, title, description, grader_url, container, part_id, files, creator_id "+
 			"FROM assignments WHERE id = $1 LIMIT 1",
@@ -55,8 +56,9 @@ func (r *AssignmentsSQLRepo) GetByID(id int64) (*assignments.Assignment, error) 
 	).Scan(
 		&assignment.ID, &assignment.Title, &assignment.Description,
 		&assignment.GraderURL, &assignment.Container, &assignment.PartID, pq.Array(&assignment.Files),
-		&assignment.CreatorID,
+		&creatorID,
 	)
+	assignment.CreatorID = creatorID.Int64
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -71,6 +73,7 @@ func (r *AssignmentsSQLRepo) GetByID(id int64) (*assignments.Assignment, error) 
 
 func (r *AssignmentsSQLRepo) GetByIDByCreator(id int64, creatorID int64) (*assignments.Assignment, error) {
 	assignment := &assignments.Assignment{}
+	var creatorIDVal sql.NullInt64
 	err := r.DB.QueryRow(
 		"SELECT id, title, description, grader_url, container, part_id, files, creator_id "+
 			"FROM assignments WHERE id = $1 AND (creator_id = $2 OR creator_id IS NULL) LIMIT 1",
@@ -78,8 +81,9 @@ func (r *AssignmentsSQLRepo) GetByIDByCreator(id int64, creatorID int64) (*assig
 	).Scan(
 		&assignment.ID, &assignment.Title, &assignment.Description,
 		&assignment.GraderURL, &assignment.Container, &assignment.PartID, pq.Array(&assignment.Files),
-		&assignment.CreatorID,
+		&creatorIDVal,
 	)
+	assignment.CreatorID = creatorIDVal.Int64
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -167,6 +171,7 @@ func (r *AssignmentsSQLRepo) Update(assignment *assignments.Assignment) (*assign
 
 func (r *AssignmentsSQLRepo) GetByTitle(title string) (*assignments.Assignment, error) {
 	assignment := &assignments.Assignment{}
+	var creatorID sql.NullInt64
 	err := r.DB.QueryRow(
 		"SELECT id, title, description, grader_url, container, part_id, files, creator_id "+
 			"FROM assignments WHERE title = $1 LIMIT 1",
@@ -174,8 +179,9 @@ func (r *AssignmentsSQLRepo) GetByTitle(title string) (*assignments.Assignment, 
 	).Scan(
 		&assignment.ID, &assignment.Title, &assignment.Description,
 		&assignment.GraderURL, &assignment.Container, &assignment.PartID, pq.Array(&assignment.Files),
-		&assignment.CreatorID,
+		&creatorID,
 	)
+	assignment.CreatorID = creatorID.Int64
 
 	if err != nil {
 		if err == sql.ErrNoRows {
