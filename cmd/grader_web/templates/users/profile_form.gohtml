@@ -1,0 +1,30 @@
+{{define "yield"}}
+<h1>Profile</h1>
+
+{{template "form_errors" .}}
+
+<form action="/profile" method="post">
+  <div class="mb-3">
+    <label for="username" class="form-label">Username</label>
+    <input type="text" class="form-control" name="username" value="{{.User.Username}}" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="current_password" class="form-label">Current Password</label>
+    <input type="password" class="form-control" name="current_password" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="new_password" class="form-label">New Password</label>
+    <input type="password" class="form-control" name="new_password">
+  </div>
+
+  <div class="mb-3">
+    <label for="new_password_confirmation" class="form-label">New Password Confirmation</label>
+    <input type="password" class="form-control" name="new_password_confirmation">
+  </div>
+
+  <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+
+{{end}}

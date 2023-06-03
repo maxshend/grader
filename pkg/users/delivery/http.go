@@ -2,7 +2,6 @@ package delivery
 
 import (
 	"io/fs"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -47,11 +46,80 @@ func NewUsersHttpHandler(
 		return nil, err
 	}
 
+	views["ProfileForm"], err = utils.NewView(templatesFS, "templates/users/profile_form.gohtml")
+	if err != nil {
+		return nil, err
+	}
+
 	return &UsersHttpHandler{
 		Service:        service,
 		Views:          views,
 		SessionManager: sessionManager,
 	}, nil
+}
+
+func (h UsersHttpHandler) EditProfile(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	err = h.Views["ProfileForm"].RenderView(
+		w,
+		&userFormData{User: currentUser},
+		currentUser,
+	)
+	if err != nil {
+		utils.RenderInternalError(w, r, err)
+	}
+}
+
+func (h UsersHttpHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := h.SessionManager.CurrentUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	user, err := h.Service.CheckCredentials(currentUser.Username, r.FormValue("current_password"))
+	if err != nil {
+		err := h.Views["ProfileForm"].RenderView(
+			w,
+			&userFormData{User: currentUser, Errors: []string{services.MsgInvalidCurrentPassword}},
+			currentUser,
+		)
+		if err != nil {
+			utils.RenderInternalError(w, r, err)
+		}
+
+		return
+	}
+
+	user.Username = r.FormValue("username")
+	_, err = h.Service.UpdateProfile(
+		user,
+		r.FormValue("new_password"),
+		r.FormValue("new_password_confirmation"),
+	)
+	if err != nil {
+		if _, ok := err.(*services.UserValidationError); ok {
+			err := h.Views["ProfileForm"].RenderView(
+				w,
+				&userFormData{User: user, Errors: []string{err.Error()}},
+				currentUser,
+			)
+			if err != nil {
+				utils.RenderInternalError(w, r, err)
+			}
+		} else {
+			utils.RenderInternalError(w, r, err)
+		}
+
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func (h UsersHttpHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -89,7 +157,7 @@ func (h UsersHttpHandler) Edit(w http.ResponseWriter, r *http.Request) {
 		utils.RenderInternalError(w, r, err)
 		return
 	}
-	if user == nil {
+	if user == nil || user.IsAdmin {
 		http.NotFound(w, r)
 		return
 	}
@@ -117,12 +185,11 @@ func (h UsersHttpHandler) Update(w http.ResponseWriter, r *http.Request) {
 		utils.RenderInternalError(w, r, err)
 		return
 	}
-	if user == nil {
+	if user == nil || user.IsAdmin {
 		http.NotFound(w, r)
 		return
 	}
 
-	log.Println(r.FormValue("is_admin"))
 	user.IsAdmin = utils.BoolFromParam(r.FormValue("is_admin"))
 
 	_, err = h.Service.Update(user)

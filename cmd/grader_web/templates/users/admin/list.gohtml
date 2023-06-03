@@ -23,7 +23,9 @@
           {{end}}
         </td>
         <td>
-          <a class="btn btn-outline-primary" href="/admin/users/{{.ID}}/edit">Edit</a>
+          {{if not .IsAdmin}}
+            <a class="btn btn-outline-primary" href="/admin/users/{{.ID}}/edit">Edit</a>
+          {{end}}
         </td>
       </tr>
     {{end}}

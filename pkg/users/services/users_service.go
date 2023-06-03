@@ -21,6 +21,10 @@ type UsersServiceInterface interface {
 	GetByUsername(string) (*users.User, error)
 	CheckCredentials(username, password string) (*users.User, error)
 	Update(*users.User) (*users.User, error)
+	UpdateProfile(
+		user *users.User,
+		new_password, new_password_confirmation string,
+	) (*users.User, error)
 }
 
 func NewUsersService(repo users.RepositoryInterface) UsersServiceInterface {
@@ -35,7 +39,8 @@ const (
 )
 
 var (
-	MsgInvalidUserCredentials = "Invalid email or password"
+	MsgInvalidUserCredentials = "Invalid username or password"
+	MsgInvalidCurrentPassword = "Invalid current password"
 )
 
 func (s *UsersService) GetAll() ([]*users.User, error) {
@@ -108,38 +113,91 @@ func (s *UsersService) Update(user *users.User) (*users.User, error) {
 	return s.Repo.Update(user)
 }
 
+func (s *UsersService) UpdateProfile(
+	user *users.User,
+	new_password, new_password_confirmation string,
+) (*users.User, error) {
+	err := s.validateUser(user)
+	if err != nil {
+		return nil, err
+	}
+	if new_password != new_password_confirmation {
+		return nil, &UserValidationError{MsgPasswordConfirmation}
+	}
+
+	foundUser, err := s.Repo.GetByUsername(user.Username)
+	if err != nil {
+		return nil, err
+	}
+	if foundUser != nil && user.ID != foundUser.ID {
+		return nil, &UserAlreadyExistsError{user.Username}
+	}
+
+	if len(new_password) > 0 {
+		hash, err := s.generatePasswordHash(new_password)
+		if err != nil {
+			return nil, err
+		}
+		user.Password = hash
+	}
+
+	return s.Repo.Update(user)
+}
+
 func (s *UsersService) create(username, password, password_confirmation string, provider int) (user *users.User, err error) {
 	user = &users.User{Username: username}
 
-	if len(username) == 0 {
-		err = &UserValidationError{MsgUsernameBlank}
+	err = s.validateUser(user)
+	if err != nil {
+		return
+	}
+	err = s.validatePassword(password, password_confirmation)
+	if err != nil {
 		return
 	}
 
-	if len(password) < MinPasswordLength {
-		err = &UserValidationError{MsgPasswordTooShort}
-		return
-	}
-
-	if password != password_confirmation {
-		err = &UserValidationError{MsgPasswordConfirmation}
-		return
-	}
-
-	foundUser, err := s.Repo.GetByUsernameProvider(username, provider)
+	foundUser, err := s.Repo.GetByUsername(username)
 	if err != nil {
 		return
 	}
 	if foundUser != nil {
-		user = foundUser
 		err = &UserAlreadyExistsError{username}
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hash, err := s.generatePasswordHash(password)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.Repo.Create(username, string(hash), provider, false)
+	return s.Repo.Create(username, hash, provider, false)
+}
+
+func (s *UsersService) generatePasswordHash(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+
+	return string(hash), nil
+}
+
+func (s *UsersService) validateUser(user *users.User) error {
+	if len(user.Username) == 0 {
+		return &UserValidationError{MsgUsernameBlank}
+	}
+
+	return nil
+}
+
+func (s *UsersService) validatePassword(password, password_confirmation string) error {
+	if len(password) < MinPasswordLength {
+		return &UserValidationError{MsgPasswordTooShort}
+	}
+
+	if password != password_confirmation {
+		return &UserValidationError{MsgPasswordConfirmation}
+	}
+
+	return nil
 }

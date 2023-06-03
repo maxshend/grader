@@ -124,8 +124,8 @@ func (r *UsersSQLRepo) GetByUsernameProvider(username string, provider int) (*us
 
 func (r *UsersSQLRepo) Update(user *users.User) (*users.User, error) {
 	_, err := r.DB.Exec(
-		"UPDATE users SET is_admin = $2 WHERE id = $1",
-		user.ID, user.IsAdmin,
+		"UPDATE users SET is_admin = $2, username = $3, password = $4 WHERE id = $1",
+		user.ID, user.IsAdmin, user.Username, user.Password,
 	)
 	if err != nil {
 		return nil, err

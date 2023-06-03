@@ -190,6 +190,8 @@ func main() {
 
 	authPages := router.NewRoute().Subrouter()
 
+	authPages.HandleFunc("/profile", usersHandler.EditProfile).Methods("GET")
+	authPages.HandleFunc("/profile", usersHandler.UpdateProfile).Methods("POST")
 	authPages.HandleFunc("/assignments", assignmentsHandler.PersonalAssignments).Methods("GET")
 	authPages.HandleFunc("/", assignmentsHandler.PersonalAssignments).Methods("GET")
 	authPages.HandleFunc("/assignments/{id}/submissions/new", assignmentsHandler.NewSubmission).Methods("GET")
