@@ -7,15 +7,19 @@ import (
 	"github.com/maxshend/grader/cmd/grader_runner/app/pkg/submission_tasks"
 )
 
+type DockerClientInterface interface {
+	client.CommonAPIClient
+}
+
 type SubmissionTaskService struct {
-	DockerClient *client.Client
+	DockerClient DockerClientInterface
 }
 
 type SubmissionTaskServiceInterface interface {
 	RunSubmission(context.Context, *submission_tasks.SubmissionTask) error
 }
 
-func NewSubmissionTaskService(dockerClient *client.Client) *SubmissionTaskService {
+func NewSubmissionTaskService(dockerClient DockerClientInterface) *SubmissionTaskService {
 	return &SubmissionTaskService{
 		DockerClient: dockerClient,
 	}

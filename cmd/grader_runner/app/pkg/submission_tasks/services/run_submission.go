@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/maxshend/grader/cmd/grader_runner/app/pkg/submission_tasks"
+	"golang.org/x/sync/errgroup"
 )
 
 type ContainerResponse struct {
@@ -31,7 +32,7 @@ const (
 )
 
 func (s *SubmissionTaskService) RunSubmission(ctx context.Context, task *submission_tasks.SubmissionTask) error {
-	dir, rmDir, err := tmpSaveAttachments(task)
+	dir, rmDir, err := tmpSaveAttachments(ctx, task)
 	if err != nil {
 		return err
 	}
@@ -157,7 +158,7 @@ func (s *SubmissionTaskService) createContainer(
 	return
 }
 
-func tmpSaveAttachments(task *submission_tasks.SubmissionTask) (dir string, rmDir func() error, err error) {
+func tmpSaveAttachments(ctx context.Context, task *submission_tasks.SubmissionTask) (dir string, rmDir func() error, err error) {
 	dir = fmt.Sprintf("/tmp/submission_%d", task.SubmissionID)
 	err = os.Mkdir(dir, 0755)
 	if err != nil {
@@ -181,28 +182,43 @@ func tmpSaveAttachments(task *submission_tasks.SubmissionTask) (dir string, rmDi
 		}
 	}()
 
+	errs, ctx := errgroup.WithContext(ctx)
+
 	for _, file := range task.Files {
-		fullpath := filepath.Join(dir, file.Name)
-		var newFile *os.File
+		func(file *submission_tasks.SubmissionFile) {
+			errs.Go(func() error {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+					var newFile *os.File
+					fullpath := filepath.Join(dir, file.Name)
 
-		newFile, err = os.Create(fullpath)
-		if err != nil {
-			return
-		}
-		defer newFile.Close()
+					newFile, err := os.Create(fullpath)
+					if err != nil {
+						return err
+					}
+					defer newFile.Close()
 
-		var resp *http.Response
+					var resp *http.Response
 
-		resp, err = http.Get(file.URL)
-		if err != nil {
-			return
-		}
+					resp, err = http.Get(file.URL)
+					if err != nil {
+						return err
+					}
 
-		_, err = io.Copy(newFile, resp.Body)
-		if err != nil {
-			return
-		}
+					_, err = io.Copy(newFile, resp.Body)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				}
+			})
+		}(file)
 	}
+
+	err = errs.Wait()
 
 	return
 }
