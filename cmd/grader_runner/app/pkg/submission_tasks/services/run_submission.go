@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -31,6 +32,11 @@ const (
 	TimeoutMsg         = "Timeout"
 )
 
+var (
+	ErrSubmissionFileDonwload = errors.New("can't download submission file")
+	ErrSendResults            = errors.New("can't send submission results")
+)
+
 func (s *SubmissionTaskService) RunSubmission(ctx context.Context, task *submission_tasks.SubmissionTask) error {
 	dir, rmDir, err := tmpSaveAttachments(ctx, task)
 	if err != nil {
@@ -50,6 +56,12 @@ func (s *SubmissionTaskService) RunSubmission(ctx context.Context, task *submiss
 	if err := s.DockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return err
 	}
+	defer func() {
+		noWaitTimeout := 0 // to not wait for the container to exit gracefully
+		if err := s.DockerClient.ContainerStop(ctx, resp.ID, container.StopOptions{Timeout: &noWaitTimeout}); err != nil {
+			log.Printf("Can't stop docker container: %v", err)
+		}
+	}()
 
 	containerResponse := &ContainerResponse{}
 	statusCh, errCh := s.DockerClient.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
@@ -86,11 +98,6 @@ func (s *SubmissionTaskService) RunSubmission(ctx context.Context, task *submiss
 		containerResponse.Text = TimeoutMsg
 	}
 
-	noWaitTimeout := 0 // to not wait for the container to exit gracefully
-	if err := s.DockerClient.ContainerStop(ctx, resp.ID, container.StopOptions{Timeout: &noWaitTimeout}); err != nil {
-		return err
-	}
-
 	httpResponse, err := sendResults(task.WebhookURL, task.AccessToken, containerResponse)
 	if err != nil {
 		return err
@@ -122,6 +129,9 @@ func sendResults(graderURL string, authorization string, containerResponse *Cont
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, err
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, ErrSendResults
 	}
 
 	return response, nil
@@ -205,6 +215,10 @@ func tmpSaveAttachments(ctx context.Context, task *submission_tasks.SubmissionTa
 					resp, err = http.Get(file.URL)
 					if err != nil {
 						return err
+					}
+					if resp.StatusCode != http.StatusOK {
+						log.Printf("Cannot get submission file: %q (%d)", file.URL, resp.StatusCode)
+						return ErrSubmissionFileDonwload
 					}
 
 					_, err = io.Copy(newFile, resp.Body)
