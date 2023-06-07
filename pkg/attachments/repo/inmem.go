@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/maxshend/grader/pkg/attachments"
@@ -16,7 +17,7 @@ type AttachmentsInmemRepo struct {
 	mx   sync.Mutex
 }
 
-func NewAttachmentsInmemRepo(path string, host string) *AttachmentsInmemRepo {
+func NewAttachmentsInmemRepo(host string, path string) *AttachmentsInmemRepo {
 	return &AttachmentsInmemRepo{Path: path, Host: host}
 }
 
@@ -49,6 +50,9 @@ func (r *AttachmentsInmemRepo) Destroy(path string) error {
 	if err != nil {
 		return err
 	}
+	if strings.HasPrefix(u.Path, "/") {
+		path = u.Path[1:]
+	}
 
-	return os.Remove(u.Path[1:])
+	return os.Remove(path)
 }

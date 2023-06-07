@@ -109,7 +109,7 @@ func main() {
 
 	assignmentsRepo := repo.NewAssignmentsSQLRepo(dbConn)
 	submRepo := submissionsRepo.NewSubmissionsSQLRepo(dbConn)
-	attachRepo := attachmentsRepo.NewAttachmentsInmemRepo("./uploads", os.Getenv("HOST"))
+	attachRepo := attachmentsRepo.NewAttachmentsInmemRepo(os.Getenv("HOST"), "./uploads")
 	userRepo := usersRepo.NewUsersSQLRepo(dbConn)
 	sessionRepo := sessionsRepo.NewSessionsSQLRepo(dbConn)
 
